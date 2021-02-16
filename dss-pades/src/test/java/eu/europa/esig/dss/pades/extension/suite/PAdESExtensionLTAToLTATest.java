@@ -21,8 +21,16 @@
 package eu.europa.esig.dss.pades.extension.suite;
 
 import eu.europa.esig.dss.enumerations.SignatureLevel;
+import eu.europa.esig.dss.pades.validation.PDFDocumentValidator;
+import eu.europa.esig.dss.validation.AdvancedSignature;
+import eu.europa.esig.dss.validation.SignedDocumentValidator;
+import eu.europa.esig.dss.validation.timestamp.TimestampToken;
 
-public class PAdESExtensionLTAToLTATest extends AbstractTestPAdESExtension {
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class PAdESExtensionLTAToLTATest extends AbstractPAdESTestExtension {
 
 	@Override
 	protected SignatureLevel getOriginalSignatureLevel() {
@@ -32,6 +40,22 @@ public class PAdESExtensionLTAToLTATest extends AbstractTestPAdESExtension {
 	@Override
 	protected SignatureLevel getFinalSignatureLevel() {
 		return SignatureLevel.PAdES_BASELINE_LTA;
+	}
+	
+	@Override
+	protected void checkValidationContext(SignedDocumentValidator validator) {
+		super.checkValidationContext(validator);
+		
+		List<AdvancedSignature> signatures = validator.getSignatures();
+		AdvancedSignature advancedSignature = signatures.get(0);
+		List<TimestampToken> allTimestamps = advancedSignature.getAllTimestamps();
+		
+		// second LTA
+		if (allTimestamps.size() > 2) {
+			PDFDocumentValidator pdfValidator = (PDFDocumentValidator) validator;
+			// dss dict is not updated -> revision is not created by the validator
+			assertEquals(1, pdfValidator.getDssDictionaries().size());
+		}
 	}
 
 }

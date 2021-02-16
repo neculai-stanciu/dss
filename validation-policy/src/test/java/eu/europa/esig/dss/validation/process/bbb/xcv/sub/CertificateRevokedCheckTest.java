@@ -35,12 +35,13 @@ import eu.europa.esig.dss.detailedreport.jaxb.XmlSubXCV;
 import eu.europa.esig.dss.diagnostic.CertificateRevocationWrapper;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlCertificateRevocation;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlRevocation;
+import eu.europa.esig.dss.enumerations.CertificateStatus;
 import eu.europa.esig.dss.enumerations.RevocationReason;
 import eu.europa.esig.dss.policy.SubContext;
 import eu.europa.esig.dss.policy.jaxb.Level;
 import eu.europa.esig.dss.policy.jaxb.LevelConstraint;
 import eu.europa.esig.dss.validation.process.bbb.AbstractTestCheck;
-import eu.europa.esig.dss.validation.process.bbb.xcv.sub.checks.CertificateRevokedCheck;
+import eu.europa.esig.dss.validation.process.bbb.xcv.sub.checks.CertificateNotRevokedCheck;
 
 public class CertificateRevokedCheckTest extends AbstractTestCheck {
 
@@ -53,13 +54,13 @@ public class CertificateRevokedCheckTest extends AbstractTestCheck {
 		constraint.setLevel(Level.FAIL);
 
 		XmlCertificateRevocation xcr = new XmlCertificateRevocation();
-		xcr.setStatus(false);
+		xcr.setStatus(CertificateStatus.REVOKED);
 		xcr.setReason(RevocationReason.CERTIFICATE_HOLD);
 		XmlRevocation xr = new XmlRevocation();
 		xcr.setRevocation(xr);
 
 		XmlSubXCV result = new XmlSubXCV();
-		CertificateRevokedCheck cec = new CertificateRevokedCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(), 
+		CertificateNotRevokedCheck cec = new CertificateNotRevokedCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(),
 				constraint, SubContext.CA_CERTIFICATE);
 		cec.execute();
 
@@ -74,14 +75,14 @@ public class CertificateRevokedCheckTest extends AbstractTestCheck {
 		constraint.setLevel(Level.FAIL);
 
 		XmlCertificateRevocation xcr = new XmlCertificateRevocation();
-		xcr.setStatus(false);
+		xcr.setStatus(CertificateStatus.REVOKED);
 		xcr.setRevocationDate(CAL1.getTime());
 		xcr.setReason(RevocationReason.CA_COMPROMISE);
 		XmlRevocation xr = new XmlRevocation();
 		xcr.setRevocation(xr);
 
 		XmlSubXCV result = new XmlSubXCV();
-		CertificateRevokedCheck cec = new CertificateRevokedCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(), 
+		CertificateNotRevokedCheck cec = new CertificateNotRevokedCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(),
 				constraint, SubContext.CA_CERTIFICATE);
 		cec.execute();
 

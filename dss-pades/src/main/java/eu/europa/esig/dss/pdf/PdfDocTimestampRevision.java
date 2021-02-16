@@ -20,21 +20,16 @@
  */
 package eu.europa.esig.dss.pdf;
 
-import java.util.Date;
-import java.util.List;
-
-import org.bouncycastle.cms.SignerInformation;
+import eu.europa.esig.dss.model.DSSException;
+import eu.europa.esig.dss.model.InMemoryDocument;
+import eu.europa.esig.dss.pades.validation.PdfSignatureDictionary;
+import eu.europa.esig.dss.pades.validation.timestamp.PdfTimestampToken;
+import eu.europa.esig.dss.validation.timestamp.TimestampToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import eu.europa.esig.dss.enumerations.TimestampLocation;
-import eu.europa.esig.dss.enumerations.TimestampType;
-import eu.europa.esig.dss.model.DSSException;
-import eu.europa.esig.dss.model.InMemoryDocument;
-import eu.europa.esig.dss.spi.x509.CertificatePool;
-import eu.europa.esig.dss.validation.PdfSignatureDictionary;
-import eu.europa.esig.dss.validation.SignatureCryptographicVerification;
-import eu.europa.esig.dss.validation.timestamp.TimestampToken;
+import java.util.Date;
+import java.util.List;
 
 /**
  * Signature timestamp representation
@@ -49,53 +44,27 @@ public class PdfDocTimestampRevision extends PdfCMSRevision {
 	/**
 	 * Default constructor to create PdfDocTimestampInfo
 	 * 
-	 * @param validationCertPool
-	 *                                 the certificate pool
 	 * @param signatureDictionary
-	 *                                 the signature dictionary
-	 * @param timestampedDssDictionary
-	 *                                 the covered DSS dictionary
-	 * @param cms
-	 *                                 the CMS (CAdES) bytes
+	 *            					   the signature dictionary
+	 * @param timestampFieldNames
+	 *            					   list of signature field names
 	 * @param signedContent
 	 *                                 the signed data
 	 * @param coverCompleteRevision
 	 *                                 true if the signature covers all bytes
 	 */
-	public PdfDocTimestampRevision(byte[] cms, PdfSignatureDictionary signatureDictionary, PdfDssDict timestampedDssDictionary, 
-			List<String> timestampFieldNames, CertificatePool validationCertPool, byte[] signedContent, boolean coverCompleteRevision) {
-		super(cms, signatureDictionary, timestampedDssDictionary, timestampFieldNames, signedContent, coverCompleteRevision);
+	public PdfDocTimestampRevision(PdfSignatureDictionary signatureDictionary, List<String> timestampFieldNames,
+								   byte[] signedContent, boolean coverCompleteRevision) {
+		super(signatureDictionary, timestampFieldNames, signedContent, coverCompleteRevision);
 		try {
-			TimestampType timestampType = TimestampType.SIGNATURE_TIMESTAMP;
-			if (timestampedDssDictionary != null) {
-				timestampType = TimestampType.ARCHIVE_TIMESTAMP;
-			}
-			timestampToken = new TimestampToken(this, timestampType, validationCertPool, TimestampLocation.DOC_TIMESTAMP);
+			timestampToken = new PdfTimestampToken(this);
+			timestampToken.matchData(new InMemoryDocument(getRevisionCoveredBytes()));
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Created PdfDocTimestampInfo {} : {}", timestampType, uniqueId());
+				LOG.debug("Created PdfDocTimestampInfo : {}", getByteRange());
 			}
 		} catch (Exception e) {
 			throw new DSSException(e);
 		}
-	}
-
-	@Override
-	public void checkIntegrityOnce() {
-		final SignatureCryptographicVerification signatureCryptographicVerification = new SignatureCryptographicVerification();
-		signatureCryptographicVerification.setReferenceDataFound(false);
-		signatureCryptographicVerification.setReferenceDataIntact(false);
-		signatureCryptographicVerification.setSignatureIntact(false);
-		byte[] signedDocumentContent = getSignedDocumentBytes();
-		if (signedDocumentContent != null) {
-			signatureCryptographicVerification.setReferenceDataFound(true);
-			signatureCryptographicVerification.setReferenceDataIntact(timestampToken.matchData(new InMemoryDocument(signedDocumentContent)));
-		}
-		signatureCryptographicVerification.setSignatureIntact(timestampToken.isSignatureValid());
-	}
-
-	@Override
-	public boolean isTimestampRevision() {
-		return true;
 	}
 
 	@Override
@@ -105,11 +74,6 @@ public class PdfDocTimestampRevision extends PdfCMSRevision {
 
 	public TimestampToken getTimestampToken() {
 		return timestampToken;
-	}
-
-	@Override
-	protected boolean isSignerInformationValidated(SignerInformation signerInformation) {
-		return signerInformation == timestampToken.getSignerInformation();
 	}
 
 }

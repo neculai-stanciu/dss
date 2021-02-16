@@ -22,29 +22,43 @@ package eu.europa.esig.dss.validation.process.bbb.fc.checks;
 
 import eu.europa.esig.dss.detailedreport.jaxb.XmlFC;
 import eu.europa.esig.dss.diagnostic.SignatureWrapper;
-import eu.europa.esig.dss.diagnostic.jaxb.XmlPDFRevision;
+import eu.europa.esig.dss.diagnostic.jaxb.XmlSignerInfo;
 import eu.europa.esig.dss.enumerations.Indication;
 import eu.europa.esig.dss.enumerations.SubIndication;
 import eu.europa.esig.dss.i18n.I18nProvider;
 import eu.europa.esig.dss.i18n.MessageTag;
 import eu.europa.esig.dss.policy.jaxb.LevelConstraint;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.process.ChainItem;
 
+import java.util.List;
+
+/**
+ * Checks if only one SignatureInformationStore is present for a PAdES signature
+ */
 public class SignerInformationStoreCheck extends ChainItem<XmlFC> {
 
+	/** The signature */
 	private final SignatureWrapper signature;
 
+	/**
+	 * Default constructor
+	 *
+	 * @param i18nProvider {@link I18nProvider}
+	 * @param result {@link XmlFC}
+	 * @param signature {@link SignatureWrapper}
+	 * @param constraint {@link LevelConstraint}
+	 */
 	public SignerInformationStoreCheck(I18nProvider i18nProvider, XmlFC result, SignatureWrapper signature, LevelConstraint constraint) {
 		super(i18nProvider, result, constraint);
-
 		this.signature = signature;
 	}
 
 	@Override
 	protected boolean process() {
-		XmlPDFRevision pdfRevision = signature.getPDFRevision();
-		if (pdfRevision != null && pdfRevision.getSignerInformationStore() != null) {
-			return pdfRevision.getSignerInformationStore().size() == 1;
+		List<XmlSignerInfo> signatureInformationStore = signature.getSignatureInformationStore();
+		if (Utils.isCollectionNotEmpty(signatureInformationStore)) {
+			return signatureInformationStore.size() == 1;
 		}
 		return false;
 	}

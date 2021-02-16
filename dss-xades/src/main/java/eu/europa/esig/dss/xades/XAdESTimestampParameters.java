@@ -20,42 +20,63 @@
  */
 package eu.europa.esig.dss.xades;
 
-import javax.xml.crypto.dsig.CanonicalizationMethod;
-
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.model.TimestampParameters;
+import eu.europa.esig.dss.utils.Utils;
 
+/**
+ * Parameters for a XAdES timestamp creation
+ */
 @SuppressWarnings("serial")
 public class XAdESTimestampParameters extends TimestampParameters {
 
+	/** The canonicalization method to use for the message-imprint */
+	private String canonicalizationMethod = DSSXMLUtils.DEFAULT_DSS_C14N_METHOD;
+
 	/**
-	 * This is the default canonicalization method for XMLDSIG used for timestamps. Another complication arises because
-	 * of the way that the default canonicalization algorithm
-	 * handles namespace declarations; frequently a signed XML document needs to be embedded in another document; in
-	 * this case the original canonicalization algorithm will not
-	 * yield the same result as if the document is treated alone. For this reason, the so-called Exclusive
-	 * Canonicalization, which serializes XML namespace declarations
-	 * independently of the surrounding XML, was created.
+	 * Empty constructor
 	 */
-	private String canonicalizationMethod = CanonicalizationMethod.EXCLUSIVE;
-	
 	public XAdESTimestampParameters() {
 	}
-	
+
+	/**
+	 * Constructor with digest algorithm
+	 *
+	 * @param digestAlgorithm {@link DigestAlgorithm} to use for message-imprint digest calculation
+	 */
 	public XAdESTimestampParameters(DigestAlgorithm digestAlgorithm) {
 		super(digestAlgorithm);
 	}
-	
+
+	/**
+	 * Default constructor
+	 *
+	 * @param digestAlgorithm {@link DigestAlgorithm} to use for message-imprint digest calculation
+	 * @param canonicalizationMethod {@link String} canonicalization to use for the message-imprint
+	 */
 	public XAdESTimestampParameters(DigestAlgorithm digestAlgorithm, String canonicalizationMethod) {
 		super(digestAlgorithm);
 		this.canonicalizationMethod = canonicalizationMethod;
 	}
 
+	/**
+	 * Gets the canonicalization method
+	 *
+	 * @return {@link String}
+	 */
 	public String getCanonicalizationMethod() {
 		return canonicalizationMethod;
 	}
 
+	/**
+	 * Sets the canonicalization method
+	 *
+	 * @param canonicalizationMethod {@link String}
+	 */
 	public void setCanonicalizationMethod(final String canonicalizationMethod) {
+		if (Utils.isStringEmpty(canonicalizationMethod)) {
+			throw new IllegalArgumentException("Canonicalization cannot be empty! See EN 319 132-1: 4.5 Managing canonicalization of XML nodesets.");
+		}
 		this.canonicalizationMethod = canonicalizationMethod;
 	}
 

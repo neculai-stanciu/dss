@@ -24,23 +24,36 @@ import eu.europa.esig.dss.detailedreport.jaxb.XmlISC;
 import eu.europa.esig.dss.diagnostic.TokenProxy;
 import eu.europa.esig.dss.enumerations.Indication;
 import eu.europa.esig.dss.enumerations.SubIndication;
-import eu.europa.esig.dss.policy.jaxb.LevelConstraint;
-import eu.europa.esig.dss.validation.process.ChainItem;
 import eu.europa.esig.dss.i18n.I18nProvider;
 import eu.europa.esig.dss.i18n.MessageTag;
+import eu.europa.esig.dss.policy.jaxb.LevelConstraint;
+import eu.europa.esig.dss.validation.process.ChainItem;
 
+/**
+ * Checks if the signing certificate reference is present
+ */
 public class SigningCertificateAttributePresentCheck extends ChainItem<XmlISC> {
 
+	/** The token to verify */
 	private final TokenProxy token;
 
-	public SigningCertificateAttributePresentCheck(I18nProvider i18nProvider, XmlISC result, TokenProxy token, LevelConstraint constraint) {
+	/**
+	 * Default constructor
+	 *
+	 * @param i18nProvider {@link I18nProvider}
+	 * @param result {@link XmlISC}
+	 * @param token {@link TokenProxy}
+	 * @param constraint {@link LevelConstraint}
+	 */
+	public SigningCertificateAttributePresentCheck(I18nProvider i18nProvider, XmlISC result, TokenProxy token,
+												   LevelConstraint constraint) {
 		super(i18nProvider, result, constraint);
 		this.token = token;
 	}
 
 	@Override
 	protected boolean process() {
-		return token.isAttributePresent();
+		return token.isSigningCertificateReferencePresent();
 	}
 
 	@Override

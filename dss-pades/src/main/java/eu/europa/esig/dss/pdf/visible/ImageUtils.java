@@ -20,8 +20,6 @@
  */
 package eu.europa.esig.dss.pdf.visible;
 
-import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
@@ -46,13 +44,14 @@ import org.w3c.dom.NodeList;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.MimeType;
-import eu.europa.esig.dss.pades.DSSFont;
+import eu.europa.esig.dss.pades.SignatureFieldParameters;
 import eu.europa.esig.dss.pades.SignatureImageParameters;
-import eu.europa.esig.dss.pades.SignatureImageTextParameters;
+import eu.europa.esig.dss.pdf.AnnotationBox;
 import eu.europa.esig.dss.utils.Utils;
 
 /**
  * Static utilities that helps in creating ImageAndResolution
+ * 
  * @author pakeyser
  */
 public class ImageUtils {
@@ -60,73 +59,40 @@ public class ImageUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(ImageUtils.class);
 
 	private static final int[] IMAGE_TRANSPARENT_TYPES;
-	
+
 	private static final int DEFAULT_DPI = 96;
 
+	/**
+	 * Defines a number of a first page in a document
+	 */
+	public static final int DEFAULT_FIRST_PAGE = 1;
+
 	static {
-		int[] imageAlphaTypes = new int[] { BufferedImage.TYPE_4BYTE_ABGR, BufferedImage.TYPE_4BYTE_ABGR_PRE, BufferedImage.TYPE_INT_ARGB,
-				BufferedImage.TYPE_INT_ARGB_PRE };
+		int[] imageAlphaTypes = new int[] { BufferedImage.TYPE_4BYTE_ABGR, BufferedImage.TYPE_4BYTE_ABGR_PRE,
+				BufferedImage.TYPE_INT_ARGB, BufferedImage.TYPE_INT_ARGB_PRE };
 		Arrays.sort(imageAlphaTypes);
 		IMAGE_TRANSPARENT_TYPES = imageAlphaTypes;
 	}
-	
+
 	private ImageUtils() {
 	}
 
 	/**
-	 * This method returns the image size with the original parameters (the generation uses DPI)
+	 * Reads image's metadata in a secure way. If metadata is not accessible from
+	 * {@code image}, returns values from {@code imageParameters}
 	 * 
-	 * @param imageParameters
-	 *            the image parameters
-	 * @return a Dimension object
-	 * @throws IOException
-	 */
-	public static Dimension getOptimalSize(SignatureImageParameters imageParameters) throws IOException {
-
-		Dimension dimension = getImageDimension(imageParameters);
-		double width = dimension.getWidth();
-		double height = dimension.getHeight();
-
-		SignatureImageTextParameters textParamaters = imageParameters.getTextParameters();
-		if ((textParamaters != null) && !textParamaters.getText().isEmpty()) {
-			Dimension textDimension = getTextDimension(imageParameters);
-			switch (textParamaters.getSignerTextPosition()) {
-			case LEFT:
-			case RIGHT:
-				width += textDimension.width;
-				height = Math.max(height, textDimension.height);
-				break;
-			case TOP:
-			case BOTTOM:
-				width = Math.max(width, textDimension.width);
-				height += textDimension.height;
-				break;
-			default:
-				break;
-			}
-
-		}
-
-		float ration = CommonDrawerUtils.getRation(imageParameters.getDpi());
-		return new Dimension(Math.round((int)width / ration), Math.round((int)height / ration));
-	}
-	
-	/**
-	 * Reads image's metadata in a secure way. If metadata is not accessible from {@code image}, 
-	 * returns values from {@code imageParameters}
-	 * 
-	 * @param image {@link DSSDocument} image to read metadata from
 	 * @param imageParameters {@link SignatureImageParameters}
 	 * @return {@link ImageAndResolution} metadata
 	 * @throws IOException in case of image reading error
 	 */
-	public static ImageAndResolution secureReadMetadata(DSSDocument image, SignatureImageParameters imageParameters) throws IOException {
+	public static ImageAndResolution secureReadMetadata(SignatureImageParameters imageParameters) throws IOException {
 		ImageAndResolution imageAndResolution;
 		try {
 			imageAndResolution = ImageUtils.readDisplayMetadata(imageParameters.getImage());
 		} catch (Exception e) {
 			LOG.warn("Cannot access the image metadata : {}. Returns default info.", e.getMessage());
-			imageAndResolution = new ImageAndResolution(imageParameters.getImage(), imageParameters.getDpi(), imageParameters.getDpi());
+			imageAndResolution = new ImageAndResolution(imageParameters.getImage(), imageParameters.getDpi(),
+					imageParameters.getDpi());
 		}
 		return imageAndResolution;
 	}
@@ -149,7 +115,7 @@ public class ImageUtils {
 
 	private static boolean isImageWithContentType(DSSDocument image, MimeType expectedContentType) {
 		if (image.getMimeType() != null) {
-			return expectedContentType == image.getMimeType();
+			return image.getMimeType().equals(expectedContentType);
 		} else if (image.getName() != null) {
 			String contentType = null;
 			try {
@@ -171,7 +137,7 @@ public class ImageUtils {
 			ImageReader reader = getImageReader("jpeg");
 			// attach source to the reader
 			reader.setInput(iis, true);
-			
+
 			int hdpi = DEFAULT_DPI;
 			int vdpi = DEFAULT_DPI;
 
@@ -201,7 +167,7 @@ public class ImageUtils {
 			ImageReader reader = getImageReader("png");
 			// attach source to the reader
 			reader.setInput(iis, true);
-			
+
 			int hdpi = DEFAULT_DPI;
 			int vdpi = DEFAULT_DPI;
 
@@ -233,23 +199,25 @@ public class ImageUtils {
 			return new ImageAndResolution(image, hdpi, vdpi);
 		}
 	}
-	
+
 	private static boolean isSupportedColorSpace(ImageReader reader) throws IOException {
 		Iterator<ImageTypeSpecifier> imageTypes = reader.getImageTypes(0);
 		// ImageReader detects only processable types
 		return imageTypes.hasNext();
 	}
-	
+
 	/**
-	 * Returns Dimensions. Tries to retrieve explicetly set values in the parameters,
-	 * in other case reads dimensions from the provided image
+	 * Returns image boundary box. Tries to retrieve explicitly set values in the
+	 * parameters, in other case reads dimensions from the provided image
+	 * 
 	 * @param imageParameters {@link SignatureImageParameters}
-	 * @return {@link Dimension}
+	 * @return {@link AnnotationBox}
 	 */
-	public static Dimension getImageDimension(SignatureImageParameters imageParameters) {
-		float width = imageParameters.getWidth();
-		float height = imageParameters.getHeight();
-		float scaleFactor = imageParameters.getScaleFactor();
+	public static AnnotationBox getImageBoundaryBox(SignatureImageParameters imageParameters) {
+		SignatureFieldParameters fieldParameters = imageParameters.getFieldParameters();
+		float width = fieldParameters.getWidth();
+		float height = fieldParameters.getHeight();
+		float scaleFactor = getScaleFactor(imageParameters.getZoom());
 		if (width == 0 && height == 0) {
 			try {
 				DSSDocument docImage = imageParameters.getImage();
@@ -264,13 +232,23 @@ public class ImageUtils {
 				LOG.error("Cannot read the given image", e);
 			}
 		}
-		Dimension dimension = new Dimension();
-		dimension.setSize((int)width * scaleFactor, (int)height * scaleFactor);
-		return dimension;
+		return new AnnotationBox(0, 0, width * scaleFactor, height * scaleFactor);
 	}
-	
+
 	/**
-	 * Reads image from InputStream. Detects and converts CMYK images to RGB if needed
+	 * Returns a coefficient applying to a signature field width/height calculation
+	 * 
+	 * @param zoom - zoom value to compute scale factor from
+	 * @return {@code float} scale factor
+	 */
+	public static float getScaleFactor(int zoom) {
+		return zoom / 100f;
+	}
+
+	/**
+	 * Reads image from InputStream. Detects and converts CMYK images to RGB if
+	 * needed
+	 * 
 	 * @param is {@link InputStream} to read the image from
 	 * @return {@link BufferedImage}
 	 * @throws IOException - in case of InputStream reading error
@@ -291,15 +269,15 @@ public class ImageUtils {
 			throw new DSSException("The color space of image is not supported!");
 		}
 	}
-	
+
 	private static Raster getRaster(ImageReader imageReader) throws IOException {
 		return imageReader.readRaster(0, imageReader.getDefaultReadParam());
 	}
-	
+
 	private static boolean isCMYKType(Raster raster) {
 		return raster.getNumBands() == 4; // number of parameters for CMYK color scheme per pixel
 	}
-	
+
 	private static BufferedImage convertCMYKToRGB(Raster raster) throws IOException {
 		int width = raster.getWidth();
 		int height = raster.getHeight();
@@ -317,18 +295,6 @@ public class ImageUtils {
 			}
 		}
 		return rgbImage;
-	}
-
-	/**
-	 * Computes {@link Dimension} of the text box to create
-	 * @param imageParameters {@link SignatureImageParameters} to use
-	 * @return {@link Dimension} of the text box
-	 */
-	private static Dimension getTextDimension(SignatureImageParameters imageParameters) {
-		SignatureImageTextParameters textParameters = imageParameters.getTextParameters();
-		DSSFont dssFont = textParameters.getFont();
-		Font properFont = FontUtils.computeProperFont(dssFont.getJavaFont(), dssFont.getSize(), imageParameters.getDpi());
-		return FontUtils.computeSize(properFont, textParameters.getText(), textParameters.getPadding());
 	}
 
 	public static BufferedImage rotate(BufferedImage image, double angle) {
@@ -360,7 +326,7 @@ public class ImageUtils {
 		}
 		return reader;
 	}
-	
+
 	private static ImageReader getImageReader(ImageInputStream iis) {
 		Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
 		ImageReader reader = getRasterReader(readers);
@@ -369,7 +335,7 @@ public class ImageUtils {
 		}
 		return reader;
 	}
-	
+
 	private static ImageReader getRasterReader(Iterator<ImageReader> readers) {
 		ImageReader reader = null;
 		// pick the first available ImageReader that reads raster
@@ -394,6 +360,82 @@ public class ImageUtils {
 			imageType = BufferedImage.TYPE_INT_ARGB;
 		}
 		return imageType;
+	}
+
+	/**
+	 * Checks if the two given images are equal
+	 * 
+	 * @param img1 {@link BufferedImage}
+	 * @param img2 {@link BufferedImage}
+	 * @return TRUE if the two images are equal, FALSE otherwise
+	 */
+	public static boolean imagesEqual(BufferedImage img1, BufferedImage img2) {
+		if (imageDimensionsEqual(img1, img2)) {
+			int diffAmount = drawSubtractionImage(img1, img2, null);
+			return diffAmount == 0;
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if the dimensions of the provided images is equal
+	 * 
+	 * @param img1 {@link BufferedImage}
+	 * @param img2 {@link BufferedImage}
+	 * @return TRUE if the size dimensions of both images is equal, FALSE otherwise
+	 */
+	public static boolean imageDimensionsEqual(BufferedImage img1, BufferedImage img2) {
+		if ((img1.getWidth() != img2.getWidth()) || (img1.getHeight() != img2.getHeight())) {
+			LOG.warn("Screenshot comparison error! Images dimensions mismatch.");
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Draws the subtraction image and returns different pixels amount
+	 * 
+	 * @param img1   {@link BufferedImage} to compare
+	 * @param img2   {@link BufferedImage} to compare
+	 * @param outImg {@link BufferedImage} the output result (subtraction image)
+	 * @return amount of different pixels between two images
+	 */
+	public static int drawSubtractionImage(BufferedImage img1, BufferedImage img2, BufferedImage outImg) {
+		int diffAmount = 0;
+		int diff; // Defines current pixel color difference
+		int result; // Stores output pixel
+		for (int i = 0; i < img1.getHeight() && i < img2.getHeight(); i++) {
+			for (int j = 0; j < img1.getWidth() && j < img2.getWidth(); j++) {
+				int rgb1 = img1.getRGB(j, i);
+				int rgb2 = img2.getRGB(j, i);
+				int r1 = (rgb1 >> 16) & 0xff;
+				int g1 = (rgb1 >> 8) & 0xff;
+				int b1 = (rgb1) & 0xff;
+				int r2 = (rgb2 >> 16) & 0xff;
+				int g2 = (rgb2 >> 8) & 0xff;
+				int b2 = (rgb2) & 0xff;
+
+				// Overwrite for a new pixel
+				diff = Math.abs(r1 - r2);
+				diff += Math.abs(g1 - g2);
+				diff += Math.abs(b1 - b2);
+
+				if (diff > 0) {
+					diffAmount++;
+				}
+
+				if (outImg != null) {
+					// Change - Ensure result is between 0 - 255
+					diff /= 3;
+					// Make the difference image gray scale
+					// The RGB components are all the same
+					result = (diff << 16) | (diff << 8) | diff;
+					// Set result
+					outImg.setRGB(j, i, result);
+				}
+			}
+		}
+		return diffAmount;
 	}
 
 }

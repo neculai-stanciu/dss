@@ -20,6 +20,7 @@
  */
 package eu.europa.esig.dss.diagnostic;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,7 +28,11 @@ import java.util.List;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlBasicSignature;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlChainItem;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlDigestMatcher;
+import eu.europa.esig.dss.diagnostic.jaxb.XmlModification;
+import eu.europa.esig.dss.diagnostic.jaxb.XmlModificationDetection;
+import eu.europa.esig.dss.diagnostic.jaxb.XmlPDFRevision;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlSigningCertificate;
+import eu.europa.esig.dss.enumerations.CertificateRefOrigin;
 import eu.europa.esig.dss.enumerations.CertificateSourceType;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.EncryptionAlgorithm;
@@ -40,6 +45,16 @@ public abstract class AbstractTokenProxy implements TokenProxy {
 	protected abstract List<XmlChainItem> getCurrentCertificateChain();
 
 	protected abstract XmlSigningCertificate getCurrentSigningCertificate();
+
+	@Override
+	public FoundCertificatesProxy foundCertificates() {
+		return new FoundCertificatesProxy(null);
+	}
+
+	@Override
+	public FoundRevocationsProxy foundRevocations() {
+		return new FoundRevocationsProxy(null);
+	}
 
 	@Override
 	public List<XmlDigestMatcher> getDigestMatchers() {
@@ -115,34 +130,6 @@ public abstract class AbstractTokenProxy implements TokenProxy {
 	}
 
 	@Override
-	public boolean isIssuerSerialMatch() {
-		XmlSigningCertificate currentSigningCertificate = getCurrentSigningCertificate();
-		return (currentSigningCertificate != null)
-				&& (currentSigningCertificate.isIssuerSerialMatch() != null && currentSigningCertificate.isIssuerSerialMatch());
-	}
-
-	@Override
-	public boolean isAttributePresent() {
-		XmlSigningCertificate currentSigningCertificate = getCurrentSigningCertificate();
-		return (currentSigningCertificate != null)
-				&& (currentSigningCertificate.isAttributePresent() != null && currentSigningCertificate.isAttributePresent());
-	}
-
-	@Override
-	public boolean isDigestValueMatch() {
-		XmlSigningCertificate currentSigningCertificate = getCurrentSigningCertificate();
-		return (currentSigningCertificate != null)
-				&& (currentSigningCertificate.isDigestValueMatch() != null && currentSigningCertificate.isDigestValueMatch());
-	}
-
-	@Override
-	public boolean isDigestValuePresent() {
-		XmlSigningCertificate currentSigningCertificate = getCurrentSigningCertificate();
-		return (currentSigningCertificate != null)
-				&& (currentSigningCertificate.isDigestValuePresent() != null && currentSigningCertificate.isDigestValuePresent());
-	}
-
-	@Override
 	public CertificateWrapper getSigningCertificate() {
 		XmlSigningCertificate currentSigningCertificate = getCurrentSigningCertificate();
 		if (currentSigningCertificate != null && currentSigningCertificate.getCertificate() != null) {
@@ -158,6 +145,48 @@ public abstract class AbstractTokenProxy implements TokenProxy {
 			return currentSigningCertificate.getPublicKey();
 		}
 		return null;
+	}
+	
+	@Override
+	public boolean isSigningCertificateReferencePresent() {
+		return getSigningCertificateReferences().size() > 0;
+	}
+	
+	@Override
+	public boolean isSigningCertificateReferenceUnique() {
+		return getSigningCertificateReferences().size() == 1;
+	}
+	
+	@Override
+	public CertificateRefWrapper getSigningCertificateReference() {
+		List<CertificateRefWrapper> signingCertificateReferences = foundCertificates()
+				.getRelatedCertificateRefsByRefOrigin(CertificateRefOrigin.SIGNING_CERTIFICATE);
+		if (signingCertificateReferences.size() > 0) {
+			// return a reference matching a signing certificate
+			CertificateWrapper signingCertificate = getSigningCertificate();
+			if (signingCertificate != null) {
+				for (RelatedCertificateWrapper relatedCertificate : foundCertificates().getRelatedCertificates()) {
+					if (signingCertificate.getId().equals(relatedCertificate.getId()) && relatedCertificate.getReferences().size() > 0) {
+						return relatedCertificate.getReferences().iterator().next();
+					}
+				}
+			}
+		} else {
+			List<CertificateRefWrapper> orphanSigningCertificateReferences = foundCertificates()
+					.getOrphanCertificateRefsByRefOrigin(CertificateRefOrigin.SIGNING_CERTIFICATE);
+			if (orphanSigningCertificateReferences.size() > 0) {
+				return orphanSigningCertificateReferences.iterator().next();
+			}
+		}
+		return null;
+	}
+	
+	@Override
+	public List<CertificateRefWrapper> getSigningCertificateReferences() {
+		List<CertificateRefWrapper> certificateRefs = new ArrayList<>();
+		certificateRefs.addAll(foundCertificates().getRelatedCertificateRefsByRefOrigin(CertificateRefOrigin.SIGNING_CERTIFICATE));
+		certificateRefs.addAll(foundCertificates().getOrphanCertificateRefsByRefOrigin(CertificateRefOrigin.SIGNING_CERTIFICATE));
+		return certificateRefs;
 	}
 
 	@Override
@@ -184,6 +213,57 @@ public abstract class AbstractTokenProxy implements TokenProxy {
 
 	public abstract byte[] getBinaries();
 	
+	protected boolean arePdfModificationsDetected(XmlPDFRevision pdfRevision) {
+		if (pdfRevision != null) {
+			XmlModificationDetection modificationDetection = pdfRevision.getModificationDetection();
+			if (modificationDetection != null) {
+				return modificationDetection.getAnnotationOverlap().size() != 0 || modificationDetection.getVisualDifference().size() != 0;
+			}
+		}
+		return false;
+	}
+	
+	protected List<BigInteger> getPdfAnnotationsOverlapConcernedPages(XmlPDFRevision pdfRevision) {
+		if (pdfRevision != null) {
+			XmlModificationDetection modificationDetection = pdfRevision.getModificationDetection();
+			if (modificationDetection != null) {
+				List<XmlModification> annotationOverlap = modificationDetection.getAnnotationOverlap();
+				return getConcernedPages(annotationOverlap);
+			}
+		}
+		return Collections.emptyList();
+	}
+	
+	protected List<BigInteger> getPdfVisualDifferenceConcernedPages(XmlPDFRevision pdfRevision) {
+		if (pdfRevision != null) {
+			XmlModificationDetection modificationDetection = pdfRevision.getModificationDetection();
+			if (modificationDetection != null) {
+				List<XmlModification> visualDifference = modificationDetection.getVisualDifference();
+				return getConcernedPages(visualDifference);
+			}
+		}
+		return Collections.emptyList();
+	}
+	
+	protected List<BigInteger> getPdfPageDifferenceConcernedPages(XmlPDFRevision pdfRevision) {
+		if (pdfRevision != null) {
+			XmlModificationDetection modificationDetection = pdfRevision.getModificationDetection();
+			if (modificationDetection != null) {
+				List<XmlModification> pageDifference = modificationDetection.getPageDifference();
+				return getConcernedPages(pageDifference);
+			}
+		}
+		return Collections.emptyList();
+	}
+	
+	private List<BigInteger> getConcernedPages(List<XmlModification> xmlModifications) {
+		List<BigInteger> pages = new ArrayList<>();
+		for (XmlModification modification : xmlModifications) {
+			pages.add(modification.getPage());
+		}
+		return pages;
+	}
+	
 	@Override
 	public String toString() {
 		return "Token Id='" + getId() + "'";
@@ -207,10 +287,12 @@ public abstract class AbstractTokenProxy implements TokenProxy {
 			return false;
 		AbstractTokenProxy other = (AbstractTokenProxy) obj;
 		if (getId() == null) {
-			if (other.getId() != null)
+			if (other.getId() != null) {
 				return false;
-		} else if (!getId().equals(other.getId()))
+			}
+		} else if (!getId().equals(other.getId())) {
 			return false;
+		}
 		return true;
 	}
 

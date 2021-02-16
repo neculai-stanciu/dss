@@ -23,6 +23,9 @@ package eu.europa.esig.dss.enumerations;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Defines available signature qualification types
+ */
 public enum SignatureQualification implements UriBasedEnum {
 
 	/**
@@ -145,7 +148,7 @@ public enum SignatureQualification implements UriBasedEnum {
 
 	private static class Registry {
 
-		private final static Map<String, SignatureQualification> QUALIFS_BY_READABLE = registerByReadable();
+		private static final Map<String, SignatureQualification> QUALIFS_BY_READABLE = registerByReadable();
 
 		private static Map<String, SignatureQualification> registerByReadable() {
 			final Map<String, SignatureQualification> map = new HashMap<>();

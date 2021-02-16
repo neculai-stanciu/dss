@@ -20,19 +20,17 @@
  */
 package eu.europa.esig.dss.tsl.dto.condition;
 
-import static java.util.Collections.unmodifiableList;
+import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.model.x509.X500PrincipalHelper;
+import eu.europa.esig.dss.spi.DSSASN1Utils;
+import eu.europa.esig.dss.spi.tsl.Condition;
+import eu.europa.esig.dss.utils.Utils;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 
 import java.util.Collections;
 import java.util.List;
 
-import javax.security.auth.x500.X500Principal;
-
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-
-import eu.europa.esig.dss.model.x509.CertificateToken;
-import eu.europa.esig.dss.spi.DSSASN1Utils;
-import eu.europa.esig.dss.spi.tsl.Condition;
-import eu.europa.esig.dss.utils.Utils;
+import static java.util.Collections.unmodifiableList;
 
 /**
  * CertSubjectDNAttribute
@@ -51,8 +49,14 @@ public class CertSubjectDNAttributeCondition implements Condition {
 
 	private static final long serialVersionUID = 5941353274395443267L;
 
+	/** List of DN attribute OIDs to be checked against the certificate’s subject DN */
 	private final List<String> subjectAttributeOids;
 
+	/**
+	 * Default constructor
+	 *
+	 * @param oids a list of DN attribute OIDs to be checked
+	 */
 	public CertSubjectDNAttributeCondition(List<String> oids) {
 		this.subjectAttributeOids = oids;
 	}
@@ -71,10 +75,11 @@ public class CertSubjectDNAttributeCondition implements Condition {
 
 	@Override
 	public boolean check(CertificateToken certificateToken) {
-		X500Principal subjectX500Principal = certificateToken.getSubjectX500Principal();
 		if (Utils.isCollectionNotEmpty(subjectAttributeOids)) {
+			X500PrincipalHelper subject = certificateToken.getSubject();
 			for (String oid : subjectAttributeOids) {
-				String attribute = DSSASN1Utils.extractAttributeFromX500Principal(new ASN1ObjectIdentifier(oid), subjectX500Principal);
+				String attribute = DSSASN1Utils.extractAttributeFromX500Principal(new ASN1ObjectIdentifier(oid),
+						subject);
 				if (Utils.isStringEmpty(attribute)) {
 					return false;
 				}

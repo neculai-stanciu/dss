@@ -20,11 +20,8 @@
  */
 package eu.europa.esig.dss.validation;
 
-import java.util.Date;
-import java.util.Locale;
-import java.util.Objects;
-
 import eu.europa.esig.dss.diagnostic.jaxb.XmlDiagnosticData;
+import eu.europa.esig.dss.enumerations.TokenExtractionStrategy;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.x509.CertificateToken;
 import eu.europa.esig.dss.policy.ValidationPolicy;
@@ -33,37 +30,89 @@ import eu.europa.esig.dss.validation.executor.certificate.CertificateProcessExec
 import eu.europa.esig.dss.validation.executor.certificate.DefaultCertificateProcessExecutor;
 import eu.europa.esig.dss.validation.reports.CertificateReports;
 
+import java.util.Date;
+import java.util.Locale;
+import java.util.Objects;
+
+/**
+ * Validates a CertificateToken
+ */
 public class CertificateValidator implements ProcessExecutorProvider<CertificateProcessExecutor> {
 
-	private Date validationTime;
+	/** The certificateToken to be validated */
 	private final CertificateToken token;
+
+	/** The validation time */
+	private Date validationTime;
+
+	/** The CertificateVerifier to use */
 	private CertificateVerifier certificateVerifier;
+
+	/** The TokenExtractionStrategy */
+	private TokenExtractionStrategy tokenExtractionStrategy = TokenExtractionStrategy.NONE;
 	
 	/**
 	 * Locale to use for reports generation
 	 * By default a Locale from OS is used
 	 */
 	private Locale locale = Locale.getDefault();
-	
+
+	/** The CertificateProcessExecutor */
 	private CertificateProcessExecutor processExecutor;
 
+	/**
+	 * The default constructor
+	 *
+	 * @param token {@link CertificateToken}
+	 */
 	private CertificateValidator(CertificateToken token) {
 		Objects.requireNonNull(token, "The certificate is missing");
 		this.token = token;
 	}
 
+	/**
+	 * Creates a CertificateValidator from a certificateToken
+	 *
+	 * @param token {@link CertificateToken}
+	 * @return {@link CertificateValidator}
+	 */
 	public static CertificateValidator fromCertificate(final CertificateToken token) {
 		return new CertificateValidator(token);
 	}
 
+	/**
+	 * Sets the CertificateVerifier
+	 *
+	 * @param certificateVerifier {@link CertificateVerifier}
+	 */
 	public void setCertificateVerifier(CertificateVerifier certificateVerifier) {
 		this.certificateVerifier = certificateVerifier;
 	}
 
+	/**
+	 * Sets the TokenExtractionStrategy
+	 *
+	 * @param tokenExtractionStrategy {@link TokenExtractionStrategy}
+	 */
+	public void setTokenExtractionStrategy(TokenExtractionStrategy tokenExtractionStrategy) {
+		Objects.requireNonNull(tokenExtractionStrategy);
+		this.tokenExtractionStrategy = tokenExtractionStrategy;
+	}
+
+	/**
+	 * Sets the validationTime
+	 *
+	 * @param validationTime {@link Date}
+	 */
 	public void setValidationTime(Date validationTime) {
 		this.validationTime = validationTime;
 	}
-	
+
+	/**
+	 * Sets the Locale to use for messages in reports
+	 *
+	 * @param locale {@link Locale}
+	 */
 	public void setLocale(Locale locale) {
 		this.locale = locale;
 	}
@@ -75,6 +124,11 @@ public class CertificateValidator implements ProcessExecutorProvider<Certificate
 		return validationTime;
 	}
 
+	/**
+	 * Validates the certificate with a default validation policy
+	 *
+	 * @return {@link CertificateReports}
+	 */
 	public CertificateReports validate() {
 		ValidationPolicy defaultPolicy = null;
 		try {
@@ -85,17 +139,24 @@ public class CertificateValidator implements ProcessExecutorProvider<Certificate
 		return validate(defaultPolicy);
 	}
 
+	/**
+	 * Validated the certificate with a custom validation policy
+	 *
+	 * @param validationPolicy {@link ValidationPolicy}
+	 * @return {@link CertificateReports}
+	 */
 	public CertificateReports validate(ValidationPolicy validationPolicy) {
-
 		SignatureValidationContext svc = new SignatureValidationContext();
 		svc.initialize(certificateVerifier);
 		svc.addCertificateTokenForVerification(token);
 		svc.setCurrentTime(getValidationTime());
 		svc.validate();
 
-		final XmlDiagnosticData diagnosticData = new DiagnosticDataBuilder().usedCertificates(svc.getProcessedCertificates())
-				.usedRevocations(svc.getProcessedRevocations()).includeRawCertificateTokens(certificateVerifier.isIncludeCertificateTokenValues())
-				.includeRawRevocationData(certificateVerifier.isIncludeCertificateRevocationValues())
+		final XmlDiagnosticData diagnosticData = new CertificateDiagnosticDataBuilder()
+				.usedCertificates(svc.getProcessedCertificates())
+				.usedRevocations(svc.getProcessedRevocations())
+				.defaultDigestAlgorithm(certificateVerifier.getDefaultDigestAlgorithm())
+				.tokenExtractionStrategy(tokenExtractionStrategy)
 				.certificateSourceTypes(svc.getCertificateSourceTypes())
 				.trustedCertificateSources(certificateVerifier.getTrustedCertSources())
 				.validationDate(getValidationTime()).build();
@@ -114,6 +175,11 @@ public class CertificateValidator implements ProcessExecutorProvider<Certificate
 		this.processExecutor = processExecutor;
 	}
 
+	/**
+	 * Gets the {@link CertificateProcessExecutor}
+	 *
+	 * @return {@link CertificateProcessExecutor}
+	 */
 	public CertificateProcessExecutor provideProcessExecutorInstance() {
 		if (processExecutor == null) {
 			processExecutor = getDefaultProcessExecutor();

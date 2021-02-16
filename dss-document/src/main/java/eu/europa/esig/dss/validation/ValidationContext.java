@@ -20,21 +20,28 @@
  */
 package eu.europa.esig.dss.validation;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import eu.europa.esig.dss.enumerations.CertificateSourceType;
-import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.model.x509.revocation.Revocation;
 import eu.europa.esig.dss.spi.x509.revocation.RevocationToken;
 import eu.europa.esig.dss.validation.timestamp.TimestampToken;
+
+import java.util.Date;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * This interface allows the implementation of the validators for: certificates, timestamps and revocation data.
  */
 public interface ValidationContext {
+
+	/**
+	 * This method initializes the {@code ValidationContext} by retrieving the relevant data
+	 * from {@code certificateVerifier}
+	 *
+	 * @param certificateVerifier {@link CertificateVerifier}
+	 */
+	void initialize(final CertificateVerifier certificateVerifier);
 
 	/**
 	 * This function sets the validation time.
@@ -44,18 +51,21 @@ public interface ValidationContext {
 	 */
 	void setCurrentTime(final Date currentTime);
 
-	void initialize(final CertificateVerifier certificateVerifier);
-
+	/**
+	 * Gets the current validation time.
+	 *
+	 * @return {@link Date}
+	 */
 	Date getCurrentTime();
 
 	/**
-	 * Adds a list of new revocation tokens to the list of tokens to verify. If the revocation token has already been
-	 * added then it is ignored.
+	 * Adds a new revocation token to the list of tokens to verify. If the
+	 * revocation token has already been added then it is ignored.
 	 *
-	 * @param revocationTokens
-	 *            a list of {@code RevocationToken} revocation tokens to verify
+	 * @param revocationToken an instance of {@code RevocationToken} revocation
+	 *                        tokens to verify
 	 */
-	void addRevocationTokensForVerification(final List<RevocationToken> revocationTokens);
+	void addRevocationTokenForVerification(final RevocationToken<Revocation> revocationToken);
 
 	/**
 	 * Adds a new certificate token to the list of tokens to verify. If the certificate token has already been added
@@ -76,55 +86,68 @@ public interface ValidationContext {
 	void addTimestampTokenForVerification(final TimestampToken timestampToken);
 
 	/**
-	 * Carries out the validation process in recursive manner for not yet checked tokens.
-	 *
-	 * @throws DSSException
-	 *             if an error occurred
+	 * Carries out the validation process in recursive manner for not yet checked
+	 * tokens.
 	 */
-	void validate() throws DSSException;
+	void validate();
 
 	/**
 	 * This method allows to verify if all processed certificates have a revocation
 	 * data
 	 * 
-	 * @return true if at least one revocation data is present for each certificate
+	 * Additionally, an alert can be handled
+	 * {@link CertificateVerifier#setAlertOnMissingRevocationData(eu.europa.esig.dss.alert.StatusAlert)}
 	 * 
+	 * @return true if all needed revocation data are present
 	 */
-	boolean isAllRequiredRevocationDataPresent();
+	boolean checkAllRequiredRevocationDataPresent();
 
 	/**
 	 * This method allows to verify if all POE (timestamp tokens) are covered by a
 	 * revocation data
 	 * 
-	 * @return true if all POE have at least one revocation data issued after the
-	 *         POE creation
+	 * Additionally, an alert can be handled
+	 * {@link CertificateVerifier#setAlertOnUncoveredPOE(eu.europa.esig.dss.alert.StatusAlert)}
 	 * 
+	 * @return true if all timestamps are covered by a usable revocation data
 	 */
-	boolean isAllPOECoveredByRevocationData();
+	boolean checkAllPOECoveredByRevocationData();
 
 	/**
-	 * This method allows to verify if all processed timestamps are valid and intact
+	 * This method allows to verify if all processed timestamps are valid and
+	 * intact.
 	 * 
-	 * @return true if all processed timestamps are valid
+	 * Additionally, an alert can be handled
+	 * {@link CertificateVerifier#setAlertOnInvalidTimestamp(eu.europa.esig.dss.alert.StatusAlert)}
+	 * 
+	 * @return true if all timestamps are valid
 	 */
-	boolean isAllTimestampValid();
+	boolean checkAllTimestampsValid();
 
 	/**
 	 * This method allows to verify if all processed certificates are not revoked
 	 * 
-	 * @return true if all processed certificates are still valid
+	 * Additionally, an alert can be handled
+	 * {@link CertificateVerifier#setAlertOnRevokedCertificate(eu.europa.esig.dss.alert.StatusAlert)}
+	 * 
+	 * @return true if all certificates are valid
 	 */
-	boolean isAllCertificateValid();
+	boolean checkAllCertificatesValid();
 
 	/**
 	 * This method allows to verify if there is at least one revocation data present
 	 * after the earliest available timestamp token producing time
-	 * @param signingCertificate
-	 *            {@code CertificateToken} signing certificate of the signature to be checked
 	 * 
-	 * @return true if there is at least one revocation data issued after the earliest timestamp time
+	 * Additionally, an alert can be handled
+	 * {@link CertificateVerifier#setAlertOnNoRevocationAfterBestSignatureTime(eu.europa.esig.dss.alert.StatusAlert)}
+	 * 
+	 * @param signingCertificate {@code CertificateToken} signing certificate of the
+	 *                           signature to be checked
+	 * @return true if the signing certificate is covered with a updated revocation
+	 *         data (after signature-timestamp production time)
+	 * 
 	 */
-	boolean isAtLeastOneRevocationDataPresentAfterBestSignatureTime(CertificateToken signingCertificate);
+	boolean checkAtLeastOneRevocationDataPresentAfterBestSignatureTime(CertificateToken signingCertificate);
 
 	/**
 	 * Returns a read only list of all certificates used in the process of the validation of all signatures from the
@@ -149,7 +172,7 @@ public interface ValidationContext {
 	 *
 	 * @return The list of CertificateToken(s)
 	 */
-	Set<RevocationToken> getProcessedRevocations();
+	Set<RevocationToken<Revocation>> getProcessedRevocations();
 
 	/**
 	 * Returns a read only list of all timestamps processed during the validation of all signatures from the given

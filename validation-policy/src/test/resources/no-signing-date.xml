@@ -6,9 +6,7 @@
         <Signature Id="id-1e71de2a815b8732fdcdc48064062d7b">
             <SignatureFilename>submissionReport(Getekend)_v1_2.xml</SignatureFilename>
             <SignatureFormat>XML-NOT-ETSI</SignatureFormat>
-            <StructuralValidation>
-                <Valid>true</Valid>
-            </StructuralValidation>
+            <StructuralValidation valid="true" />
 	        <DigestMatchers>
                 <DigestMatcher type="REFERENCE" name="#test">
                     <DigestMethod>SHA256</DigestMethod>
@@ -30,18 +28,13 @@
                 <SignatureIntact>true</SignatureIntact>
                 <SignatureValid>false</SignatureValid>
             </BasicSignature>
-            <SigningCertificate Certificate="C-EFDF173DD8B570A0587980070EF0EFC8C79DD4F4EF1A206511967A7F7532FC74">
-                <AttributePresent>false</AttributePresent>
-                <DigestValuePresent>false</DigestValuePresent>
-                <DigestValueMatch>false</DigestValueMatch>
-                <IssuerSerialMatch>false</IssuerSerialMatch>
-            </SigningCertificate>
+            <SigningCertificate Certificate="C-EFDF173DD8B570A0587980070EF0EFC8C79DD4F4EF1A206511967A7F7532FC74"/>
             <CertificateChain>
                 <ChainItem Certificate="C-EFDF173DD8B570A0587980070EF0EFC8C79DD4F4EF1A206511967A7F7532FC74"/>
                 <ChainItem Certificate="C-ADDFFA6FD0809A54A9F0B31FD25F74BF7F2D7AE11C80FD99DAA0FB603A65CD0E"/>
             </CertificateChain>
             <ContentType>text/xml</ContentType>
-            <CommitmentTypeIndication/>
+            <CommitmentTypeIndications/>
             
             <FoundCertificates/>
             <FoundRevocations/>
@@ -85,6 +78,7 @@
             <NotBefore>2014-05-30T20:15:49</NotBefore>
             <PublicKeySize>4096</PublicKeySize>
             <PublicKeyEncryptionAlgo>RSA</PublicKeyEncryptionAlgo>
+            <EntityKey>PK-ADDFFA6FD0809A54A9F0B31FD25F74BF7F2D7AE11C80FD99DAA0FB603A65CD0E</EntityKey>
             <KeyUsageBits>
                 <KeyUsage>keyCertSign</KeyUsage>
                 <KeyUsage>crlSign</KeyUsage>
@@ -154,6 +148,7 @@
             <NotBefore>2016-11-03T21:06:26</NotBefore>
             <PublicKeySize>2048</PublicKeySize>
             <PublicKeyEncryptionAlgo>RSA</PublicKeyEncryptionAlgo>
+            <EntityKey>PK-ADDFFA6FD0809A54A9F0B31FD25F74BF7F2D7AE11C80FD99DAA0FB603A65CD0E</EntityKey>
             <KeyUsageBits>
                 <KeyUsage>digitalSignature</KeyUsage>
             </KeyUsageBits>
@@ -207,8 +202,8 @@
             <SerialNumber>213079583810666991238537790414025420025379483227</SerialNumber>
             <CommonName>h v e</CommonName>
             <CountryName>NL</CountryName>
-            <GivenName>j N.</GivenName>
             <OrganizationalUnit>Qualified Certificate</OrganizationalUnit>
+            <GivenName>j N.</GivenName>
             <Surname>v e</Surname>
             <AuthorityInformationAccessUrls>
                 <aiaUrl>http://trust.quovadisglobal.com/qveucag3.crt</aiaUrl>
@@ -226,6 +221,7 @@
             <NotBefore>2017-02-28T15:01:01</NotBefore>
             <PublicKeySize>2048</PublicKeySize>
             <PublicKeyEncryptionAlgo>RSA</PublicKeyEncryptionAlgo>
+            <EntityKey>PK-EFDF173DD8B570A0587980070EF0EFC8C79DD4F4EF1A206511967A7F7532FC74</EntityKey>
             <KeyUsageBits>
                 <KeyUsage>digitalSignature</KeyUsage>
                 <KeyUsage>nonRepudiation</KeyUsage>
@@ -274,7 +270,7 @@
             </TrustedServiceProviders>
             <Revocations>
                 <CertificateRevocation Revocation="R-efdf173dd8b570a0587980070ef0efc8c79dd4f4ef1a206511967a7f7532fc74e36f8862bbd580f5dcc4d07819d43045738d9921b691a7a3562f498239ae8f5a">
-                    <Status>true</Status>
+                    <Status>GOOD</Status>
                 </CertificateRevocation>
             </Revocations>
             <DigestAlgoAndValue>

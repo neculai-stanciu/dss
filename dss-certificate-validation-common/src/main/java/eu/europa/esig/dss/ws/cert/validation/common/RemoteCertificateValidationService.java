@@ -20,37 +20,52 @@
  */
 package eu.europa.esig.dss.ws.cert.validation.common;
 
-import java.util.Date;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import eu.europa.esig.dss.model.x509.CertificateToken;
 import eu.europa.esig.dss.spi.x509.CertificateSource;
 import eu.europa.esig.dss.spi.x509.CommonCertificateSource;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateValidator;
 import eu.europa.esig.dss.validation.CertificateVerifier;
+import eu.europa.esig.dss.validation.CertificateVerifierBuilder;
 import eu.europa.esig.dss.validation.reports.CertificateReports;
 import eu.europa.esig.dss.ws.cert.validation.dto.CertificateReportsDTO;
+import eu.europa.esig.dss.ws.cert.validation.dto.CertificateToValidateDTO;
 import eu.europa.esig.dss.ws.converter.RemoteCertificateConverter;
 import eu.europa.esig.dss.ws.dto.RemoteCertificate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
+/**
+ * The webService for a Certificate validation
+ */
 public class RemoteCertificateValidationService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteCertificateValidationService.class);
 
+	/** The CertificateVerifier to use */
 	private CertificateVerifier verifier;
 
+	/**
+	 * Sets the CertificateVerifier
+	 *
+	 * @param verifier {@link CertificateVerifier} to be used for validation
+	 */
 	public void setVerifier(CertificateVerifier verifier) {
 		this.verifier = verifier;
 	}
-	
-	public CertificateReportsDTO validateCertificate(RemoteCertificate certificate, List<RemoteCertificate> certificateChain, 
-			Date validationTime) {
+
+	/**
+	 * Validates the certificate
+	 *
+	 * @param certificateToValidate {@link CertificateToValidateDTO} the DTO containing the certificate to be validated
+	 *                                                                 and its corresponding data
+	 * @return {@link CertificateReportsDTO} the validation reports
+	 */
+	public CertificateReportsDTO validateCertificate(CertificateToValidateDTO certificateToValidate) {
 		LOG.info("ValidateCertificate in process...");
-		CertificateValidator validator = initValidator(certificate, certificateChain, validationTime);
+		CertificateValidator validator = initValidator(certificateToValidate);
 		
 		CertificateReports reports = validator.validate();
 		CertificateReportsDTO certificateReportsDTO = new CertificateReportsDTO(reports.getDiagnosticDataJaxb(), 
@@ -60,27 +75,41 @@ public class RemoteCertificateValidationService {
 		return certificateReportsDTO;
 	}
 	
-	private CertificateValidator initValidator(RemoteCertificate certificate, List<RemoteCertificate> certificateChain, 
-			Date validationTime) {
+	private CertificateValidator initValidator(CertificateToValidateDTO certificateToValidate) {
+		CertificateSource adjunctCertSource = getAdjunctCertificateSource(certificateToValidate.getCertificateChain());
+		
+		CertificateVerifier usedCertificateVerifier = null;
+		if (adjunctCertSource == null) {
+			usedCertificateVerifier = verifier;
+		} else {
+			usedCertificateVerifier = new CertificateVerifierBuilder(verifier).buildCompleteCopy();
+			usedCertificateVerifier.setAdjunctCertSources(adjunctCertSource);
+		}
+
+		CertificateToken certificateToken = RemoteCertificateConverter.toCertificateToken(certificateToValidate.getCertificate());
+		CertificateValidator certificateValidator = CertificateValidator.fromCertificate(certificateToken);
+		certificateValidator.setCertificateVerifier(usedCertificateVerifier);
+		if (certificateToValidate.getValidationTime() != null) {
+			certificateValidator.setValidationTime(certificateToValidate.getValidationTime());
+		}
+		if (certificateToValidate.getTokenExtractionStrategy() != null) {
+			certificateValidator.setTokenExtractionStrategy(certificateToValidate.getTokenExtractionStrategy());
+		}
+		return certificateValidator;
+	}
+
+	private CertificateSource getAdjunctCertificateSource(List<RemoteCertificate> certificateChain) {
+		CertificateSource adjunctCertSource = null;
 		if (Utils.isCollectionNotEmpty(certificateChain)) {
-			CertificateSource adjunctCertSource = new CommonCertificateSource();
+			adjunctCertSource = new CommonCertificateSource();
 			for (RemoteCertificate certificateInChain : certificateChain) {
 				CertificateToken certificateChainItem = RemoteCertificateConverter.toCertificateToken(certificateInChain);
 				if (certificateChainItem != null) {
 					adjunctCertSource.addCertificate(certificateChainItem);
 				}
 			}
-			verifier.setAdjunctCertSource(adjunctCertSource);
 		}
-		
-		CertificateToken certificateToken = RemoteCertificateConverter.toCertificateToken(certificate);
-		CertificateValidator certificateValidator = CertificateValidator.fromCertificate(certificateToken);
-		certificateValidator.setCertificateVerifier(verifier);
-		if (validationTime != null) {
-			certificateValidator.setValidationTime(validationTime);
-		}
-		
-		return certificateValidator;
+		return adjunctCertSource;
 	}
 
 }

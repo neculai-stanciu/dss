@@ -23,36 +23,34 @@ package eu.europa.esig.dss.cades.validation;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.Test;
+import java.util.List;
 
 import eu.europa.esig.dss.diagnostic.DiagnosticData;
-import eu.europa.esig.dss.diagnostic.SignatureWrapper;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.FileDocument;
-import eu.europa.esig.dss.validation.CommonCertificateVerifier;
-import eu.europa.esig.dss.validation.SignedDocumentValidator;
-import eu.europa.esig.dss.validation.reports.Reports;
+import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.validationreport.jaxb.SignersDocumentType;
 
-public class DSS951Test {
-
-	@Test
-	public void testFile1() {
-		DSSDocument dssDocument = new FileDocument("src/test/resources/validation/dss-951/NexU-CAdES-B-B-Detached-Sha512.p7m");
-		SignedDocumentValidator validator = SignedDocumentValidator.fromDocument(dssDocument);
-		validator.setCertificateVerifier(new CommonCertificateVerifier());
-		Reports reports = validator.validateDocument();
-
-		// reports.print();
-
-		DiagnosticData diagnosticData = reports.getDiagnosticData();
-
-		SignatureWrapper signature = diagnosticData.getSignatureById(diagnosticData.getFirstSignatureId());
-		assertTrue(signature.isAttributePresent());
-		assertTrue(signature.isDigestValuePresent());
-		assertTrue(signature.isDigestValueMatch());
-		assertTrue(signature.isIssuerSerialMatch());
-
+public class DSS951Test extends AbstractCAdESTestValidation {
+	
+	@Override
+	protected DSSDocument getSignedDocument() {
+		return new FileDocument("src/test/resources/validation/dss-951/NexU-CAdES-B-B-Detached-Sha512.p7m");
+	}
+	
+	@Override
+	protected void checkBLevelValid(DiagnosticData diagnosticData) {
 		assertFalse(diagnosticData.isBLevelTechnicallyValid(diagnosticData.getFirstSignatureId()));
+	}
+	
+	@Override
+	protected void checkSignatureScopes(DiagnosticData diagnosticData) {
+		assertTrue(Utils.isCollectionEmpty(diagnosticData.getOriginalSignerDocuments()));
+	}
+	
+	@Override
+	protected void validateETSISignerDocuments(List<SignersDocumentType> signersDocuments) {
+		assertTrue(Utils.isCollectionEmpty(signersDocuments));
 	}
 
 }

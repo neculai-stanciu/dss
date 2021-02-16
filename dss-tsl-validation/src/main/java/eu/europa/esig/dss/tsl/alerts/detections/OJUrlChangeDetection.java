@@ -20,6 +20,7 @@
  */
 package eu.europa.esig.dss.tsl.alerts.detections;
 
+import eu.europa.esig.dss.alert.detector.AlertDetector;
 import eu.europa.esig.dss.spi.tsl.LOTLInfo;
 import eu.europa.esig.dss.spi.tsl.ParsingInfoRecord;
 import eu.europa.esig.dss.tsl.function.LOTLSigningCertificatesAnnouncementSchemeInformationURI;
@@ -27,10 +28,19 @@ import eu.europa.esig.dss.tsl.function.OfficialJournalSchemeInformationURI;
 import eu.europa.esig.dss.tsl.source.LOTLSource;
 import eu.europa.esig.dss.utils.Utils;
 
-public class OJUrlChangeDetection implements Detection<LOTLInfo> {
+/**
+ * Detects a change of the OJ URL change
+ */
+public class OJUrlChangeDetection implements AlertDetector<LOTLInfo> {
 
+	/** The LOTL source */
 	private final LOTLSource lotlSource;
 
+	/**
+	 * Default constructor
+	 *
+	 * @param lotlSource {@link LOTLSource}
+	 */
 	public OJUrlChangeDetection(LOTLSource lotlSource) {
 		this.lotlSource = lotlSource;
 	}

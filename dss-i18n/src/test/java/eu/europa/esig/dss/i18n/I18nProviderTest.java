@@ -71,20 +71,20 @@ public class I18nProviderTest {
 			Locale.setDefault(Locale.ENGLISH);
 			
 			String status = "granted";
-			MessageTag messageTag = MessageTag.TRUSTED_SERVICE_STATUS.setArgs(status);
+			MessageTag messageTag = MessageTag.TRUSTED_SERVICE_STATUS;
 		
 			final I18nProvider i18nProvider = new I18nProvider(Locale.ENGLISH);
-			String message = i18nProvider.getMessage(messageTag);
+			String message = i18nProvider.getMessage(messageTag, status);
 			assertNotNull(message);
 			assertEquals("Status : granted", message);
 			
 			final I18nProvider i18nFrenchProvider = new I18nProvider(Locale.FRENCH);
-			message = i18nFrenchProvider.getMessage(messageTag);
+			message = i18nFrenchProvider.getMessage(messageTag, status);
 			assertNotNull(message);
 			assertEquals("Statut : granted", message);
 	
 			final I18nProvider i18nGermanProvider = new I18nProvider(Locale.GERMAN);
-			message = i18nGermanProvider.getMessage(messageTag);
+			message = i18nGermanProvider.getMessage(messageTag, status);
 			assertNotNull(message);
 			assertEquals("Status : granted", message);
 		} finally {
@@ -98,23 +98,50 @@ public class I18nProviderTest {
 		try {
 			Locale.setDefault(Locale.ENGLISH);
 			
-			MessageTag validationTime = MessageTag.VT_VALIDATION_TIME;
-			MessageTag messageTag = MessageTag.CERT_QUALIFICATION_AT_TIME.setArgs(validationTime);
+			MessageTag messageTag = MessageTag.CERT_QUALIFICATION_AT_TIME;
 		
 			final I18nProvider i18nProvider = new I18nProvider(Locale.ENGLISH);
-			String message = i18nProvider.getMessage(messageTag);
+			String message = i18nProvider.getMessage(messageTag, MessageTag.VT_VALIDATION_TIME);
 			assertNotNull(message);
 			assertEquals("Certificate Qualification at validation time", message);
 			
 			final I18nProvider i18nFrenchProvider = new I18nProvider(Locale.FRENCH);
-			message = i18nFrenchProvider.getMessage(messageTag);
+			message = i18nFrenchProvider.getMessage(messageTag, MessageTag.VT_VALIDATION_TIME);
 			assertNotNull(message);
 			assertEquals("Qualification du certificat au moment de la validation", message);
 	
 			final I18nProvider i18nGermanProvider = new I18nProvider(Locale.GERMAN);
-			message = i18nGermanProvider.getMessage(messageTag);
+			message = i18nGermanProvider.getMessage(messageTag, MessageTag.VT_VALIDATION_TIME);
 			assertNotNull(message);
 			assertEquals("Certificate Qualification at validation time", message);
+		} finally {
+			Locale.setDefault(systemLocale); // restore default
+		}
+	}
+	
+	@Test
+	public void apostropheTest() {
+		Locale systemLocale = Locale.getDefault();
+		try {
+			Locale.setDefault(Locale.ENGLISH);
+			
+			final I18nProvider i18nProvider = new I18nProvider(Locale.ENGLISH);
+			
+			MessageTag tstIntact = MessageTag.BBB_CV_ISIT;
+			String message = i18nProvider.getMessage(tstIntact);
+			assertNotNull(message);
+			assertEquals("Is timestamp's signature intact?", message);
+			
+			MessageTag signedAttribute = MessageTag.BBB_ICS_ISASCP;
+			message = i18nProvider.getMessage(signedAttribute);
+			assertNotNull(message);
+			assertEquals("Is the signed attribute: 'signing-certificate' present?", message);
+			
+			MessageTag signedQualifyingProperty = MessageTag.BBB_SAV_ISQPMDOSPP;
+			message = i18nProvider.getMessage(signedQualifyingProperty);
+			assertNotNull(message);
+			assertEquals("Is the signed qualifying property: 'message-digest' or 'SignedProperties' present?", message);
+			
 		} finally {
 			Locale.setDefault(systemLocale); // restore default
 		}

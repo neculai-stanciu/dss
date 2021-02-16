@@ -23,6 +23,9 @@ package eu.europa.esig.dss.spi;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 
+/**
+ * Contains the used OIDs
+ */
 public class OID {
 
 	private OID() {
@@ -34,9 +37,14 @@ public class OID {
 	 */
 	public static final ASN1ObjectIdentifier id_aa_ets_archiveTimestampV2 = PKCSObjectIdentifiers.id_aa.branch("48");
 
+	/**
+	 * Attributes {itu-t(0) identified-organization(4) etsi(0) electronic-signature-standard(1733) attributes(2)}
+	 */
 	public static final ASN1ObjectIdentifier id_etsi_electronicSignatureStandard_attributes = new ASN1ObjectIdentifier("0.4.0.1733.2");
 
-	// see ETSI EN 319 122-1
+	/**
+	 * Signer attributes {itu-t(0) identified-organization(4) etsi(0) cades(19122) attributes(1)} (see ETSI EN 319 122-1)
+	 */
 	public static final ASN1ObjectIdentifier id_etsi_signer_attributes = new ASN1ObjectIdentifier("0.4.0.19122.1");
 
 	/**
@@ -62,6 +70,12 @@ public class OID {
 	 * etsi(0) cades(19122) attributes(1) 1 }
 	 */
 	public static final ASN1ObjectIdentifier id_aa_ets_signerAttrV2 = id_etsi_signer_attributes.branch("1");
+
+	/**
+	 * id-aa-ets-sigPolicyStore OBJECT IDENTIFIER ::= { itu-t(0) identified-organization(4) 
+	 * etsi(0) cades(19122) attributes(1) 3 }
+	 */
+	public static final ASN1ObjectIdentifier id_aa_ets_sigPolicyStore = id_etsi_signer_attributes.branch("3");
 
 	/**
 	 * id-aa-ATSHashIndex-v2 OBJECT IDENTIFIER ::= { itu-t(0) identified-organization(4)
@@ -100,5 +114,16 @@ public class OID {
 	 */
 	public static final ASN1ObjectIdentifier adbe_revocationInfoArchival = new ASN1ObjectIdentifier(
 			"1.2.840.113583.1.1.8");
+
+	// --- ETSI TS 119 495 V1.4.1
+
+	/**
+	 * etsi-psd2-qcStatement QC-STATEMENT ::= {SYNTAX PSD2QcType IDENTIFIED BY
+	 * id-etsi-psd2-qcStatement }
+	 * 
+	 * id-etsi-psd2-qcStatement OBJECT IDENTIFIER ::={itu-t(0)
+	 * identified-organization(4) etsi(0) psd2(19495) qcstatement(2) }
+	 */
+	public static final ASN1ObjectIdentifier psd2_qcStatement = new ASN1ObjectIdentifier("0.4.0.19495.2");
 
 }

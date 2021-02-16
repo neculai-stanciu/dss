@@ -22,12 +22,20 @@ package eu.europa.esig.dss.validation;
 
 import eu.europa.esig.dss.model.identifier.Identifier;
 
+/**
+ * The DSS identifier for a SignedData
+ */
 public final class DataIdentifier extends Identifier {
 
 	private static final long serialVersionUID = -9023635708755646223L;
 
+	/**
+	 * Default constructor
+	 *
+	 * @param data the signed data binaries
+	 */
 	public DataIdentifier(final byte[] data) {
-		super(data);
+		super("D-", data);
 	}
 
 }

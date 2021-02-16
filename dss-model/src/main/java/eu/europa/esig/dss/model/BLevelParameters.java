@@ -20,6 +20,8 @@
  */
 package eu.europa.esig.dss.model;
 
+import eu.europa.esig.dss.enumerations.CommitmentType;
+
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
@@ -43,18 +45,28 @@ public class BLevelParameters implements Serializable {
 	 */
 	private boolean trustAnchorBPPolicy = true;
 
+	/** The claimed signing time */
 	private Date signingDate = new Date();
 
+	/** Claimed signer roles */
 	private List<String> claimedSignerRoles;
 
+	/** Signed assertions */
+	private List<String> signedAssertions;
+
+	/** The Signature Policy Identifier */
 	private Policy signaturePolicy;
 
-	private List<String> commitmentTypeIndications;
-	
+	/** List of commitment type indications */
+	private List<CommitmentType> commitmentTypeIndications;
+
+	/** The SignerLocation */
 	private SignerLocation signerLocation;
 
 	/**
-	 * @return indicates the trust anchor policy shall be used when creating -B and -LT levels
+	 * Check if the trust anchor policy shall be used when creating -B and -LT levels
+	 *
+	 * @return TRUE if the trust anchor policy shall be used when creating -B and -LT levels, FALSE otherwise
 	 */
 	public boolean isTrustAnchorBPPolicy() {
 		return trustAnchorBPPolicy;
@@ -65,8 +77,7 @@ public class BLevelParameters implements Serializable {
 	 * NOTE: when trust anchor baseline profile policy is defined only the certificates previous to the trust anchor are
 	 * included when building -B level.
 	 *
-	 * @param trustAnchorBPPolicy
-	 *            {@code boolean}
+	 * @param trustAnchorBPPolicy {@code boolean}
 	 */
 	public void setTrustAnchorBPPolicy(boolean trustAnchorBPPolicy) {
 		this.trustAnchorBPPolicy = trustAnchorBPPolicy;
@@ -131,11 +142,29 @@ public class BLevelParameters implements Serializable {
 	}
 
 	/**
+	 * Get the signed assertions
+	 *
+	 * @return list of {@link String}s
+	 */
+	public List<String> getSignedAssertions() {
+        return signedAssertions;
+    }
+
+	/**
+	 * Set signed assertions
+	 *
+	 * @param signedAssertions a list of {@link String}s
+	 */
+	public void setSignedAssertions(List<String> signedAssertions) {
+        this.signedAssertions = signedAssertions;
+    }
+
+	/**
 	 * Get the commitment type indications
 	 * 
 	 * @return the list of commitment type indications
 	 */
-	public List<String> getCommitmentTypeIndications() {
+	public List<CommitmentType> getCommitmentTypeIndications() {
 		return commitmentTypeIndications;
 	}
 
@@ -145,7 +174,7 @@ public class BLevelParameters implements Serializable {
 	 * @param commitmentTypeIndications
 	 *            a list of commitment type indications
 	 */
-	public void setCommitmentTypeIndications(List<String> commitmentTypeIndications) {
+	public void setCommitmentTypeIndications(List<CommitmentType> commitmentTypeIndications) {
 		this.commitmentTypeIndications = commitmentTypeIndications;
 	}
 
@@ -173,6 +202,7 @@ public class BLevelParameters implements Serializable {
 		final int prime = 31;
 		int result = 1;
 		result = (prime * result) + ((claimedSignerRoles == null) ? 0 : claimedSignerRoles.hashCode());
+		result = (prime * result) + ((signedAssertions == null) ? 0 : signedAssertions.hashCode());
 		result = (prime * result) + ((commitmentTypeIndications == null) ? 0 : commitmentTypeIndications.hashCode());
 		result = (prime * result) + ((signaturePolicy == null) ? 0 : signaturePolicy.hashCode());
 		result = (prime * result) + ((signerLocation == null) ? 0 : signerLocation.hashCode());
@@ -198,6 +228,13 @@ public class BLevelParameters implements Serializable {
 				return false;
 			}
 		} else if (!claimedSignerRoles.equals(other.claimedSignerRoles)) {
+			return false;
+		}
+		if (signedAssertions == null) {
+			if (other.signedAssertions != null) {
+				return false;
+			}
+		} else if (!signedAssertions.equals(other.signedAssertions)) {
 			return false;
 		}
 		if (commitmentTypeIndications == null) {
@@ -237,7 +274,7 @@ public class BLevelParameters implements Serializable {
 	@Override
 	public String toString() {
 		return "BLevelParameters [trustAnchorBPPolicy=" + trustAnchorBPPolicy + ", signingDate=" + signingDate + ", claimedSignerRoles=" + claimedSignerRoles
-				+ ", signaturePolicy=" + signaturePolicy + ", commitmentTypeIndication=" + commitmentTypeIndications + ", signerLocation=" + signerLocation
+				+ ", signedAssertions=" + signedAssertions + ", signaturePolicy=" + signaturePolicy + ", commitmentTypeIndication=" + commitmentTypeIndications + ", signerLocation=" + signerLocation
 				+ "]";
 	}
 

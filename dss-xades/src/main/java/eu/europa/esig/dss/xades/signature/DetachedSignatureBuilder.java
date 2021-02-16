@@ -24,13 +24,9 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
 import eu.europa.esig.dss.DomUtils;
-import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.model.DSSDocument;
-import eu.europa.esig.dss.spi.DSSUtils;
-import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.xades.XAdESSignatureParameters;
-import eu.europa.esig.dss.xades.reference.DSSReference;
 
 /**
  * This class handles the specifics of the detached XML signature.
@@ -44,13 +40,12 @@ class DetachedSignatureBuilder extends XAdESSignatureBuilder {
 	 * @param params
 	 *            The set of parameters relating to the structure and process of the creation or extension of the
 	 *            electronic signature.
-	 * @param origDoc
+	 * @param document
 	 *            The original document to sign.
 	 * @param certificateVerifier
 	 */
-	public DetachedSignatureBuilder(final XAdESSignatureParameters params, final DSSDocument origDoc, final CertificateVerifier certificateVerifier) {
-		super(params, origDoc, certificateVerifier);
-		setCanonicalizationMethods(params, DEFAULT_CANONICALIZATION_METHOD);
+	public DetachedSignatureBuilder(final XAdESSignatureParameters params, final DSSDocument document, final CertificateVerifier certificateVerifier) {
+		super(params, document, certificateVerifier);
 	}
 
 	@Override
@@ -67,24 +62,6 @@ class DetachedSignatureBuilder extends XAdESSignatureBuilder {
 			return documentDom.getDocumentElement();
 		}
 		return documentDom;
-	}
-
-	@Override
-	protected DSSReference createReference(DSSDocument document, int referenceIndex) {
-		final DSSReference reference = new DSSReference();
-		reference.setId(REFERENCE_ID_SUFFIX + deterministicId + "-" + referenceIndex);
-		if (Utils.isStringNotEmpty(document.getName())) {
-			reference.setUri(DSSUtils.encodeURI(document.getName()));
-		}
-		reference.setContents(document);
-		DigestAlgorithm digestAlgorithm = getReferenceDigestAlgorithmOrDefault(params);
-		reference.setDigestMethodAlgorithm(digestAlgorithm);
-		return reference;
-	}
-	
-	@Override
-	protected DSSDocument transformReference(final DSSReference reference) {
-		return reference.getContents();
 	}
 
 }

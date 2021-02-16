@@ -20,20 +20,64 @@
  */
 package eu.europa.esig.dss.pdf;
 
+import eu.europa.esig.dss.model.DSSException;
+import eu.europa.esig.dss.pades.validation.PdfSignatureDictionary;
+import eu.europa.esig.dss.validation.ByteRange;
+import org.bouncycastle.cms.CMSException;
+import org.bouncycastle.cms.CMSSignedData;
+
 import java.io.IOException;
 import java.util.Date;
 
-import eu.europa.esig.dss.model.DSSException;
-import eu.europa.esig.dss.validation.PdfSignatureDictionary;
-
+/**
+ * The default implementation of {@code PdfSignatureDictionary}
+ */
 public class PdfSigDictWrapper implements PdfSignatureDictionary {
 
+	/** The PDF dictionary */
 	private final PdfDict dictionary;
-	
-	private int[] signatureByteRange;
 
+	/** The CMSSignedData */
+	private final CMSSignedData cmsSignedData;
+
+	/** The signed ByteRange */
+	private final ByteRange byteRange;
+
+	/**
+	 * Default constructor
+	 *
+	 * @param dictionary {@link PdfDict}
+	 */
 	public PdfSigDictWrapper(PdfDict dictionary) {
 		this.dictionary = dictionary;
+		this.cmsSignedData = buildCMSSignedData();
+		this.byteRange = buildByteRange();
+	}
+
+	private CMSSignedData buildCMSSignedData() {
+		try {
+			return new CMSSignedData(getContents());
+		} catch (CMSException e) {
+			throw new DSSException("Unable to build an instance of CMSSignedData", e);
+		}
+	}
+
+	private ByteRange buildByteRange() {
+		PdfArray byteRangeArray = dictionary.getAsArray("ByteRange");
+		if (byteRangeArray == null) {
+			throw new DSSException("Unable to retrieve the ByteRange");
+		}
+
+		int arraySize = byteRangeArray.size();
+		int[] result = new int[arraySize];
+		for (int i = 0; i < arraySize; i++) {
+			try {
+				result[i] = byteRangeArray.getInt(i);
+			} catch (IOException e) {
+				throw new DSSException("Unable to parse integer from the ByteRange", e);
+			}
+		}
+		return new ByteRange(result);
 	}
 
 	@Override
@@ -77,6 +121,11 @@ public class PdfSigDictWrapper implements PdfSignatureDictionary {
 	}
 
 	@Override
+	public CMSSignedData getCMSSignedData() {
+		return cmsSignedData;
+	}
+
+	@Override
 	public byte[] getContents() {
 		try {
 			return dictionary.getBinariesValue("Contents");
@@ -86,25 +135,8 @@ public class PdfSigDictWrapper implements PdfSignatureDictionary {
 	}
 
 	@Override
-	public int[] getSignatureByteRange() {
-		if (signatureByteRange == null) {
-			PdfArray byteRangeArray = dictionary.getAsArray("ByteRange");
-			if (byteRangeArray == null) {
-				throw new DSSException("Unable to retrieve the ByteRange");
-			}
-			
-			int arraySize = byteRangeArray.size();
-			int[] result = new int[arraySize];
-			for (int i = 0; i < arraySize; i++) {
-				try {
-					result[i] = byteRangeArray.getInt(i);
-				} catch (IOException e) {
-					throw new DSSException("Unable to parse integer from the ByteRange", e);
-				}
-			}
-			signatureByteRange = result;
-		}
-		return signatureByteRange;
+	public ByteRange getByteRange() {
+		return byteRange;
 	}
 
 }

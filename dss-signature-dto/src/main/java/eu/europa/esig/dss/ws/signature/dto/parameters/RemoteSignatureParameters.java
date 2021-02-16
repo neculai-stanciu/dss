@@ -28,7 +28,9 @@ import java.util.Objects;
 import eu.europa.esig.dss.enumerations.ASiCContainerType;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.EncryptionAlgorithm;
+import eu.europa.esig.dss.enumerations.JWSSerializationType;
 import eu.europa.esig.dss.enumerations.MaskGenerationFunction;
+import eu.europa.esig.dss.enumerations.SigDMechanism;
 import eu.europa.esig.dss.enumerations.SignatureAlgorithm;
 import eu.europa.esig.dss.enumerations.SignatureLevel;
 import eu.europa.esig.dss.enumerations.SignaturePackaging;
@@ -66,6 +68,16 @@ public class RemoteSignatureParameters implements Serializable {
 	 * This variable indicates the expected signature packaging
 	 */
 	private SignaturePackaging signaturePackaging;
+
+	/**
+	 * JAdES JWS Serialization Type
+	 */
+	private JWSSerializationType jwsSerializationType;
+
+	/**
+	 * JAdES SigDMechanism for a DETACHED packaging
+	 */
+	private SigDMechanism sigDMechanism;
 
 	/**
 	 * XAdES: The ds:SignatureMethod indicates the algorithms used to sign ds:SignedInfo.
@@ -123,6 +135,17 @@ public class RemoteSignatureParameters implements Serializable {
 	 */
 	private boolean generateTBSWithoutCertificate = false;
 
+	/**
+	 * PAdES: The image information to be included.
+	 */
+	private RemoteSignatureImageParameters imageParameters;
+	
+	/**
+	 * This variable defines an Id of a signature to be counter-signed
+	 * Used only for {@code getDataToBeCounterSigned()} and {@code counterSignSignature()} methods
+	 */
+	private String signatureIdToCounterSign;
+
 	public RemoteSignatureParameters() {
 	}
 
@@ -176,6 +199,45 @@ public class RemoteSignatureParameters implements Serializable {
 	public void setSignatureLevel(final SignatureLevel signatureLevel) {
 		Objects.requireNonNull(signatureLevel, "signatureLevel must be defined!");
 		this.signatureLevel = signatureLevel;
+	}
+
+	/**
+	 * Gets {@code JWSSerializationType}
+	 * NOTE: used only for JAdES
+	 * 
+	 * @return {@link JWSSerializationType}
+	 */
+	public JWSSerializationType getJwsSerializationType() {
+		return jwsSerializationType;
+	}
+
+	/**
+	 * Sets {@code JWSSerializationType}
+	 * 
+	 * @param jwsSerializationType {@link JWSSerializationType} to use
+	 */
+	public void setJwsSerializationType(JWSSerializationType jwsSerializationType) {
+		this.jwsSerializationType = jwsSerializationType;
+	}
+
+	/**
+	 * Gets {@code SigDMechanism}
+	 * NOTE: used only for JAdES with DETACHED packaging
+	 * 
+	 * @return {@link SigDMechanism}
+	 */
+	public SigDMechanism getSigDMechanism() {
+		return sigDMechanism;
+	}
+
+	/**
+	 * Sets {@code SigDMechanism}
+	 * NOTE: used only for JAdES with DETACHED packaging
+	 * 
+	 * @param sigDMechanism {@link SigDMechanism} to use
+	 */
+	public void setSigDMechanism(SigDMechanism sigDMechanism) {
+		this.sigDMechanism = sigDMechanism;
 	}
 
 	/**
@@ -422,13 +484,49 @@ public class RemoteSignatureParameters implements Serializable {
 		this.generateTBSWithoutCertificate = generateTBSWithoutCertificate;
 	}
 
+	/**
+	 * Get the image information to be included (PAdES).
+	 *
+	 * @return {@link RemoteSignatureImageParameters} the image information to be included.
+	 */
+	public RemoteSignatureImageParameters getImageParameters() {
+		return imageParameters;
+	}
+
+	/**
+	 * Set the image information to be included (PAdES).
+	 *
+	 * @param imageParameters {@link RemoteSignatureImageParameters} the image information to be included.
+	 */
+	public void setImageParameters(final RemoteSignatureImageParameters imageParameters) {
+		this.imageParameters = imageParameters;
+	}
+
+	/**
+	 * Returns a signature Id being counter signed
+	 * 
+	 * @return {@link String} signature Id to counter sign
+	 */
+	public String getSignatureIdToCounterSign() {
+		return signatureIdToCounterSign;
+	}
+
+	/**
+	 * Sets the signature Id to counter sign
+	 * 
+	 * @param signatureIdToCounterSign {@link String} signature id to counter sign
+	 */
+	public void setSignatureIdToCounterSign(String signatureIdToCounterSign) {
+		this.signatureIdToCounterSign = signatureIdToCounterSign;
+	}
+
 	@Override
 	public String toString() {
 		return "RemoteSignatureParameters [signWithExpiredCertificate=" + signWithExpiredCertificate + ", signatureLevel=" + signatureLevel + ", generateTBSWithoutCertificate="
 				+ generateTBSWithoutCertificate + ", signaturePackaging=" + signaturePackaging + ", signatureAlgorithm=" + signatureAlgorithm + ", encryptionAlgorithm=" 
 				+ encryptionAlgorithm + ", digestAlgorithm=" + digestAlgorithm + ", referenceDigestAlgorithm=" + referenceDigestAlgorithm + ", maskGenerationFunction=" 
 				+ maskGenerationFunction + ", bLevelParams=" + bLevelParams + ", contentTimestampParameters=" + contentTimestampParameters + ", signatureTimestampParameters=" 
-				+ signatureTimestampParameters + ", archiveTimestampParameters=" + archiveTimestampParameters + "]";
+				+ signatureTimestampParameters + ", archiveTimestampParameters=" + archiveTimestampParameters + ", imageParameters=" + imageParameters  + "]";
 	}
 
 	@Override
@@ -436,11 +534,17 @@ public class RemoteSignatureParameters implements Serializable {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((archiveTimestampParameters == null) ? 0 : archiveTimestampParameters.hashCode());
+		result = prime * result + ((asicContainerType == null) ? 0 : asicContainerType.hashCode());
 		result = prime * result + ((bLevelParams == null) ? 0 : bLevelParams.hashCode());
+		result = prime * result + ((certificateChain == null) ? 0 : certificateChain.hashCode());
 		result = prime * result + ((contentTimestampParameters == null) ? 0 : contentTimestampParameters.hashCode());
+		result = prime * result + ((contentTimestamps == null) ? 0 : contentTimestamps.hashCode());
+		result = prime * result + ((detachedContents == null) ? 0 : detachedContents.hashCode());
 		result = prime * result + ((digestAlgorithm == null) ? 0 : digestAlgorithm.hashCode());
 		result = prime * result + ((encryptionAlgorithm == null) ? 0 : encryptionAlgorithm.hashCode());
 		result = prime * result + (generateTBSWithoutCertificate ? 1231 : 1237);
+		result = prime * result + ((imageParameters == null) ? 0 : imageParameters.hashCode());
+		result = prime * result + ((jwsSerializationType == null) ? 0 : jwsSerializationType.hashCode());
 		result = prime * result + ((maskGenerationFunction == null) ? 0 : maskGenerationFunction.hashCode());
 		result = prime * result + ((referenceDigestAlgorithm == null) ? 0 : referenceDigestAlgorithm.hashCode());
 		result = prime * result + (signWithExpiredCertificate ? 1231 : 1237);
@@ -448,6 +552,7 @@ public class RemoteSignatureParameters implements Serializable {
 		result = prime * result + ((signatureLevel == null) ? 0 : signatureLevel.hashCode());
 		result = prime * result + ((signaturePackaging == null) ? 0 : signaturePackaging.hashCode());
 		result = prime * result + ((signatureTimestampParameters == null) ? 0 : signatureTimestampParameters.hashCode());
+		result = prime * result + ((signingCertificate == null) ? 0 : signingCertificate.hashCode());
 		return result;
 	}
 
@@ -463,25 +568,25 @@ public class RemoteSignatureParameters implements Serializable {
 			return false;
 		}
 		RemoteSignatureParameters other = (RemoteSignatureParameters) obj;
-		if (archiveTimestampParameters == null) {
-			if (other.archiveTimestampParameters != null) {
-				return false;
-			}
-		} else if (!archiveTimestampParameters.equals(other.archiveTimestampParameters)) {
+		if (!Objects.equals(archiveTimestampParameters, other.archiveTimestampParameters)) {
 			return false;
 		}
-		if (bLevelParams == null) {
-			if (other.bLevelParams != null) {
-				return false;
-			}
-		} else if (!bLevelParams.equals(other.bLevelParams)) {
+		if (asicContainerType != other.asicContainerType) {
 			return false;
 		}
-		if (contentTimestampParameters == null) {
-			if (other.contentTimestampParameters != null) {
-				return false;
-			}
-		} else if (!contentTimestampParameters.equals(other.contentTimestampParameters)) {
+		if (!Objects.equals(bLevelParams, other.bLevelParams)) {
+			return false;
+		}
+		if (!Objects.equals(certificateChain, other.certificateChain)) {
+			return false;
+		}
+		if (!Objects.equals(contentTimestampParameters, other.contentTimestampParameters)) {
+			return false;
+		}
+		if (!Objects.equals(contentTimestamps, other.contentTimestamps)) {
+			return false;
+		}
+		if (!Objects.equals(detachedContents, other.detachedContents)) {
 			return false;
 		}
 		if (digestAlgorithm != other.digestAlgorithm) {
@@ -491,6 +596,12 @@ public class RemoteSignatureParameters implements Serializable {
 			return false;
 		}
 		if (generateTBSWithoutCertificate != other.generateTBSWithoutCertificate) {
+			return false;
+		}
+		if (!Objects.equals(imageParameters, other.imageParameters)) {
+			return false;
+		}
+		if (jwsSerializationType != other.jwsSerializationType) {
 			return false;
 		}
 		if (maskGenerationFunction != other.maskGenerationFunction) {
@@ -511,11 +622,10 @@ public class RemoteSignatureParameters implements Serializable {
 		if (signaturePackaging != other.signaturePackaging) {
 			return false;
 		}
-		if (signatureTimestampParameters == null) {
-			if (other.signatureTimestampParameters != null) {
-				return false;
-			}
-		} else if (!signatureTimestampParameters.equals(other.signatureTimestampParameters)) {
+		if (!Objects.equals(signatureTimestampParameters, other.signatureTimestampParameters)) {
+			return false;
+		}
+		if (!Objects.equals(signingCertificate, other.signingCertificate)) {
 			return false;
 		}
 		return true;

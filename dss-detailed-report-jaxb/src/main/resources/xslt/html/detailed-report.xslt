@@ -419,7 +419,11 @@
 						<xsl:value-of select="@CertificateQualification"/>	       			
 	       			</span>
 			        
-		       		<xsl:value-of select="@Title"/>    
+		       		<xsl:value-of select="@Title"/>
+		 			<xsl:if test="@Id">
+		       			<br />    
+			        	<xsl:value-of select="concat('Id = ', @Id)"/>
+		        	</xsl:if>
 		        </div>
 	    		<div>
 	    			<xsl:attribute name="class">panel-body collapse in</xsl:attribute>
@@ -494,7 +498,7 @@
 	        <xsl:variable name="parentId">
 	        	<xsl:choose>
 					<xsl:when test="name()='SubXCV'" ><xsl:value-of select="../../@Id"/></xsl:when>
-					<xsl:otherwise><xsl:value-of select="../@Id"/></xsl:otherwise>
+					<xsl:otherwise><xsl:value-of select="concat(../@Id, '-', ../../../@Id)"/></xsl:otherwise>
 	        	</xsl:choose>
 	        </xsl:variable>
     		<xsl:variable name="currentId" select="concat(name(), '-', @Id, '-', $parentId)"/>
@@ -504,13 +508,13 @@
     			<xsl:attribute name="style">margin-top : 10px</xsl:attribute>
 	    		<div>
 	    			<xsl:attribute name="class">panel-heading</xsl:attribute>
-		    		<xsl:attribute name="data-target">#collapseSubXCV<xsl:value-of select="$currentId"/></xsl:attribute>
+		    		<xsl:attribute name="data-target">#collapse-SubXCV-<xsl:value-of select="$currentId"/></xsl:attribute>
 			       	<xsl:attribute name="data-toggle">collapse</xsl:attribute>
 			       	
 		       		<xsl:if test="@TrustAnchor = 'true'">
 		       			<span>
 							<xsl:attribute name="class">glyphicon glyphicon-thumbs-up pull-right</xsl:attribute>
-							<xsl:attribute name="style">font-size : 20px;</xsl:attribute>
+							<xsl:attribute name="style">font-size : 20px; margin-left : 5px;</xsl:attribute>
 							<xsl:attribute name="title">Trust Anchor</xsl:attribute>		       			
 		       			</span>
 		       		</xsl:if>
@@ -524,13 +528,39 @@
 				        	<xsl:if test="string-length(dss:Conclusion/dss:Warning) &gt; 0">
 				        		<xsl:attribute name="title"><xsl:value-of select="dss:Conclusion/dss:Warning"/></xsl:attribute>
 				        	</xsl:if>
+							<xsl:attribute name="style">margin-left : 5px;</xsl:attribute>
 				        	<xsl:value-of select="dss:Conclusion/dss:SubIndication"/>
 			        	</span>
 			        </xsl:if>
 			       	<span>
 			        	<xsl:attribute name="class">label label-<xsl:value-of select="$indicationCssClass" /> pull-right</xsl:attribute>
+						<xsl:attribute name="style">margin-left : 5px;</xsl:attribute>
 			        	<xsl:value-of select="dss:Conclusion/dss:Indication"/>
 			        </span>
+					
+    				<xsl:if test="@SelfSigned = 'true'">
+		       			<span>
+							<xsl:attribute name="class">glyphicon glyphicon-user pull-right</xsl:attribute>
+							<xsl:attribute name="style">font-size : 20px; margin-left : 5px;</xsl:attribute>
+							<xsl:attribute name="title">Self-signed</xsl:attribute>		       			
+		       			</span>
+	       			</xsl:if>
+					
+    				<xsl:if test="dss:CrossCertificate">
+		       			<span>
+							<xsl:attribute name="class">glyphicon glyphicon-link pull-right</xsl:attribute>
+							<xsl:attribute name="style">font-size : 20px; margin-left : 5px;</xsl:attribute>
+							<xsl:attribute name="title">Cross-Certification: <xsl:value-of select="dss:CrossCertificate"/></xsl:attribute>		       			
+		       			</span>
+	       			</xsl:if>
+					
+    				<xsl:if test="dss:EquivalentCertificate">
+		       			<span>
+							<xsl:attribute name="class">glyphicon glyphicon-refresh pull-right</xsl:attribute>
+							<xsl:attribute name="style">font-size : 20px; margin-left : 5px;</xsl:attribute>
+							<xsl:attribute name="title">Equivalent certification: <xsl:value-of select="dss:EquivalentCertificate"/></xsl:attribute>		       			
+		       			</span>
+	       			</xsl:if>
 			       	
 		        	<xsl:value-of select="concat(@Title, ' Id = ', @Id)"/>
 	    			
@@ -539,7 +569,7 @@
 		       	<xsl:if test="name() != 'SubXCV' or @TrustAnchor != 'true'">
 		    		<div>
 		    			<xsl:attribute name="class">panel-body collapse in</xsl:attribute>
-			        	<xsl:attribute name="id">collapseSubXCV<xsl:value-of select="$currentId"/></xsl:attribute>
+			        	<xsl:attribute name="id">collapse-SubXCV-<xsl:value-of select="$currentId"/></xsl:attribute>
 			        	<xsl:apply-templates/>
 		    		</div>
 	    		</xsl:if>
@@ -555,10 +585,16 @@
 				<xsl:value-of select="dss:Name"/>
 	    		<xsl:if test="@Id">
 	    		<xsl:variable name="NameId" select="dss:Name/@NameId"/>
-	    			<a> 
+	    			<a>
 	    				<xsl:choose>
 		    				<xsl:when test="$NameId='BBB_XCV_SUB'">
 								<xsl:attribute name="href">#SubXCV-<xsl:value-of select="concat(@Id, '-', ../../@Id)"/></xsl:attribute>
+					        </xsl:when>
+		    				<xsl:when test="$NameId='BBB_XCV_RAC'">
+								<xsl:attribute name="href">#RAC-<xsl:value-of select="concat(@Id, '-', ../@Id, '-', ../../../@Id)"/></xsl:attribute>
+					        </xsl:when>
+		    				<xsl:when test="$NameId='BBB_XCV_RFC'">
+								<xsl:attribute name="href">#RFC-<xsl:value-of select="concat(@Id, '-', ../@Id, '-', ../../../@Id)"/></xsl:attribute>
 					        </xsl:when>
 		    				<xsl:when test="$NameId='PSV_IPSVC'">
 								<xsl:attribute name="href">#<xsl:value-of select="@Id"/>-PSV</xsl:attribute>

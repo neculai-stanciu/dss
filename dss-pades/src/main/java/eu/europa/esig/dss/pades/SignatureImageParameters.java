@@ -20,126 +20,36 @@
  */
 package eu.europa.esig.dss.pades;
 
-import java.awt.Color;
-
+import eu.europa.esig.dss.enumerations.VisualSignatureAlignmentHorizontal;
+import eu.europa.esig.dss.enumerations.VisualSignatureAlignmentVertical;
+import eu.europa.esig.dss.enumerations.VisualSignatureRotation;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.pdf.visible.CommonDrawerUtils;
+
+import java.awt.*;
+import java.io.Serializable;
 
 /**
  * Parameters for a visible signature creation
  *
  */
-public class SignatureImageParameters {
+public class SignatureImageParameters implements Serializable {
 
-	public static final int DEFAULT_PAGE = 1;
+	private static final long serialVersionUID = -327971057134928889L;
 
-	public static final int NO_SCALING = 100;
-
-	/**
-	 * Visual signature horizontal position on the pdf page
-	 */
-	public enum VisualSignatureAlignmentHorizontal {
-		/**
-		 * default, x axis is the x coordinate
-		 */
-		NONE,
-		/**
-		 * x axis is left padding
-		 */
-		LEFT,
-		/**
-		 * x axis automatically calculated
-		 */
-		CENTER,
-		/**
-		 * x axis is right padding
-		 */
-		RIGHT;
-	}
-
-	/**
-	 * Visual signature vertical position on the pdf page
-	 */
-	public enum VisualSignatureAlignmentVertical {
-		/**
-		 * default, y axis is the y coordinate
-		 */
-		NONE,
-		/**
-		 * y axis is the top padding
-		 */
-		TOP,
-		/**
-		 * y axis automatically calculated
-		 */
-		MIDDLE,
-		/**
-		 * y axis is the bottom padding
-		 */
-		BOTTOM;
-	}
-
-	/**
-	 * Rotation support
-	 *
-	 */
-	public enum VisualSignatureRotation {
-		/**
-		 * default, no rotate
-		 */
-		NONE,
-		/**
-		 * automatically rotate
-		 */
-		AUTOMATIC,
-		/**
-		 * rotate by 90
-		 */
-		ROTATE_90,
-		/**
-		 * rotate by 180
-		 */
-		ROTATE_180,
-		/**
-		 * rotate by 270
-		 */
-		ROTATE_270;
-	}
+	/** The default zoom constraint */
+	private static final int NO_SCALING = 100;
 
 	/**
 	 * This variable contains the image to use (company logo,...)
 	 */
 	private DSSDocument image;
-
+	
 	/**
-	 * This variable defines the page where the image will appear (1st page by
-	 * default)
+	 * This variable defines a {@code SignatureFieldParameters} like field positions and dimensions
 	 */
-	private int page = DEFAULT_PAGE;
-
-	/**
-	 * This variable defines the position of the image in the PDF page (X axis)
-	 */
-	private float xAxis;
-
-	/**
-	 * This variable defines the position of the image in the PDF page (Y axis)
-	 */
-	private float yAxis;
+	private SignatureFieldParameters fieldParameters;
         
-        /**
-	 * This variable defines the width (in pixel) of the image in the PDF page
-	 */
-	private int width;
-
-
-	/**
-	  * This variable defines the height (in pixel) of the image in the PDF page
-	 */
-	private int height;
-        
-        
-
 	/**
 	 * This variable defines a percent to zoom the image (100% means no scaling).
 	 * Note: This do not touch zooming of the text representation.
@@ -193,36 +103,87 @@ public class SignatureImageParameters {
 	}
 
 	/**
-	 * Returns an absolute margin of the signature field by X axis
-	 * @return X axis float value
+	 * Returns {@code SignatureFieldParameters}
+	 * 
+	 * @return {@link SignatureFieldParameters}
 	 */
-	public float getxAxis() {
-		return xAxis;
+	public SignatureFieldParameters getFieldParameters() {
+		if (fieldParameters == null) {
+			fieldParameters = new SignatureFieldParameters();
+		}
+		return fieldParameters;
+	}
+	
+	/**
+	 * Sets {@code SignatureFieldParameters}, like signature field position and dimensions
+	 * 
+	 * @param fieldParameters {@link SignatureFieldParameters}
+	 */
+	public void setFieldParameters(SignatureFieldParameters fieldParameters) {
+		this.fieldParameters = fieldParameters;
 	}
 
 	/**
 	 * Allows specifying of an absolute margin for the signature field by X axis
-	 * @param xAxis {@code float} margin
+	 * 
+	 * Deprecated. Use {@code getFieldParameters().setOriginX(originX)} method
+	 * 
+	 * @param originX {@code float} margin
 	 */
-	public void setxAxis(float xAxis) {
-		this.xAxis = xAxis;
-	}
-
-	/**
-	 * Returns an absolute margin of the signature field by Y axis
-	 * @return Y axis float value
-	 */
-	public float getyAxis() {
-		return yAxis;
+	@Deprecated
+	public void setxAxis(float originX) {
+		getFieldParameters().setOriginX(originX);
 	}
 
 	/**
 	 * Allows specifying of an absolute margin for the signature field by Y axis
-	 * @param yAxis {@code float} margin
+	 * 
+	 * Deprecated. Use {@code getFieldParameters().setOriginY(originY)} method
+	 * 
+	 * @param originY {@code float} margin
 	 */
-	public void setyAxis(float yAxis) {
-		this.yAxis = yAxis;
+	@Deprecated
+	public void setyAxis(float originY) {
+		getFieldParameters().setOriginY(originY);
 	}
+
+	/**
+	 * Defines a number of page in the document where the signature field must be placed.
+	 * The counting of pages starts from 1 (the first page) (default value = 1)
+	 * NOTE: the page must exist in the document!
+	 * 
+	 * Deprecated. Use {@code getFieldParameters().setPage(page)} method
+	 * 
+	 * @param page {@code int} page number
+	 */
+	@Deprecated
+	public void setPage(int page) {
+		getFieldParameters().setPage(page);
+	}
+
+    /**
+     * Defines a custom width for the signature field in pixels
+	 * 
+	 * Deprecated. Use {@code getFieldParameters().setWidth(width)} method
+	 * 
+     * @param width {@code int} width value
+     */
+	@Deprecated
+    public void setWidth(int width) {
+		getFieldParameters().setWidth(width);
+    }
+
+    /**
+     * Defines a custom height for the signature field in pixels
+	 * 
+	 * Deprecated. Use {@code getFieldParameters().setHeight(height)} method
+	 * 
+     * @param height {@code int} height value
+     */
+	@Deprecated
+    public void setHeight(int height) {
+		getFieldParameters().setHeight(height);
+    }
 
 	/**
 	 * Returns the defined Zoom value in percentage
@@ -239,64 +200,6 @@ public class SignatureImageParameters {
 	public void setZoom(int zoom) {
 		this.zoom = zoom;
 	}
-	
-	/**
-	 * Returns a coefficient applying to a signature field width/height calculation
-	 * @return {@code float} scale factor
-	 */
-	public float getScaleFactor() {
-		return zoom / 100f;
-	}
-
-	/**
-	 * Returns a page number where the signature field must be placed
-	 * @return {@code int} page number
-	 */
-	public int getPage() {
-		return page;
-	}
-
-	/**
-	 * Defines a number of page in the document where the signature field must be placed.
-	 * The counting of pages starts from 1 (the first page) (default value = 1)
-	 * NOTE: the page must exist in the document!
-	 * @param page {@code int} page number
-	 */
-	public void setPage(int page) {
-		this.page = page;
-	}
-    
-	/**
-	 * Returns a specified width of the signature field
-	 * @return {@code int} width value
-	 */
-    public int getWidth() {
-        return width;
-    }
-
-    /**
-     * Defines a custom width for the signature field in pixels
-     * @param width {@code int} width value
-     */
-    public void setWidth(int width) {
-        this.width = width;
-    }
-
-	/**
-	 * Returns a specified height of the signature field
-	 * @return {@code int} height value
-	 */
-    public int getHeight() {
-        return height;
-    }
-
-    /**
-     * Defines a custom height for the signature field in pixels
-     * @param height {@code int} height value
-     */
-    public void setHeight(int height) {
-        this.height = height;
-    }
 
     /**
      * Returns a specified background color for the signature field
@@ -337,6 +240,9 @@ public class SignatureImageParameters {
 	 * @return {@link SignatureImageTextParameters}
 	 */
 	public SignatureImageTextParameters getTextParameters() {
+		if (textParameters == null) {
+			textParameters = new SignatureImageTextParameters();
+		}
 		return textParameters;
 	}
 
@@ -374,7 +280,7 @@ public class SignatureImageParameters {
 	 * Returns a horizontal alignment value of the signature field
 	 * @return {@link VisualSignatureAlignmentHorizontal}
 	 */
-    public SignatureImageParameters.VisualSignatureAlignmentHorizontal getVisualSignatureAlignmentHorizontal() {
+	public VisualSignatureAlignmentHorizontal getVisualSignatureAlignmentHorizontal() {
         return alignmentHorizontal;
     }
 
@@ -390,7 +296,7 @@ public class SignatureImageParameters {
 	 * Returns a vertical alignment value of the signature field
 	 * @return {@link VisualSignatureAlignmentVertical}
 	 */
-    public SignatureImageParameters.VisualSignatureAlignmentVertical getVisualSignatureAlignmentVertical() {
+	public VisualSignatureAlignmentVertical getVisualSignatureAlignmentVertical() {
         return alignmentVertical;
     }
 
@@ -401,4 +307,22 @@ public class SignatureImageParameters {
 	public void setAlignmentVertical(VisualSignatureAlignmentVertical alignmentVertical) {
 		this.alignmentVertical = alignmentVertical;
 	}
+	
+	/**
+	 * Checks if the {@code SignatureImageParameters} is empty (no image or text parameters are defined)
+	 * 
+	 * @return TRUE if the parameters are empty, FALSE otherwise
+	 */
+	public boolean isEmpty() {
+		return image == null && getTextParameters().isEmpty();
+	}
+
+	@Override
+	public String toString() {
+		return "SignatureImageParameters [image=" + image + ", zoom=" + zoom
+				+ ", backgroundColor=" + backgroundColor + ", dpi=" + dpi + ", rotation=" + rotation
+				+ ", alignmentHorizontal=" + alignmentHorizontal + ", alignmentVertical=" + alignmentVertical
+				+ ", fieldParameters=" + getFieldParameters() + ", textParameters=" + getTextParameters() + "]";
+	}
+	
 }

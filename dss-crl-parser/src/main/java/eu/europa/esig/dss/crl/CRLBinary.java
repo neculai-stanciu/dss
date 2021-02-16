@@ -21,13 +21,23 @@
 package eu.europa.esig.dss.crl;
 
 import eu.europa.esig.dss.model.identifier.EncapsulatedRevocationTokenIdentifier;
+import eu.europa.esig.dss.model.x509.revocation.crl.CRL;
 
-public class CRLBinary extends EncapsulatedRevocationTokenIdentifier {
+/**
+ * This class represents DER encoded CRL Binary identifier
+ *
+ */
+public class CRLBinary extends EncapsulatedRevocationTokenIdentifier<CRL> {
 
 	private static final long serialVersionUID = 3365111934665055383L;
 	
-	public CRLBinary(byte[] binaries) {
-		super(binaries);
+	/**
+	 * The default constructor, accepts DER encoded binaries
+	 * 
+	 * @param derEncoded DER encoded byte array
+	 */
+	public CRLBinary(byte[] derEncoded) {
+		super(derEncoded);
 	}
 
 }

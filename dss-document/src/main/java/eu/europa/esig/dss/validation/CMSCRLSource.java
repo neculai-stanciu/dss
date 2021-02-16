@@ -20,15 +20,13 @@
  */
 package eu.europa.esig.dss.validation;
 
-import static eu.europa.esig.dss.spi.OID.attributeRevocationRefsOid;
-import static org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers.id_aa_ets_revocationRefs;
-import static org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers.id_aa_ets_revocationValues;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
+import eu.europa.esig.dss.crl.CRLUtils;
+import eu.europa.esig.dss.enumerations.RevocationOrigin;
+import eu.europa.esig.dss.enumerations.RevocationRefOrigin;
+import eu.europa.esig.dss.model.DSSException;
+import eu.europa.esig.dss.spi.DSSASN1Utils;
+import eu.europa.esig.dss.spi.x509.revocation.crl.CRLRef;
+import eu.europa.esig.dss.spi.x509.revocation.crl.OfflineCRLSource;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
@@ -44,29 +42,26 @@ import org.bouncycastle.util.Store;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import eu.europa.esig.dss.crl.CRLBinary;
-import eu.europa.esig.dss.enumerations.RevocationOrigin;
-import eu.europa.esig.dss.enumerations.RevocationRefOrigin;
-import eu.europa.esig.dss.model.DSSException;
-import eu.europa.esig.dss.spi.DSSASN1Utils;
-import eu.europa.esig.dss.spi.x509.revocation.crl.CRLRef;
+import java.util.Collection;
+
+import static eu.europa.esig.dss.spi.OID.attributeRevocationRefsOid;
+import static org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers.id_aa_ets_revocationRefs;
+import static org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers.id_aa_ets_revocationValues;
 
 /**
  * CRLSource that retrieves information from a {@link CMSSignedData} container.
  *
  */
 @SuppressWarnings("serial")
-public abstract class CMSCRLSource extends SignatureCRLSource {
+public abstract class CMSCRLSource extends OfflineCRLSource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CMSCRLSource.class);
 
-	protected final transient CMSSignedData cmsSignedData;
-	protected final transient AttributeTable unsignedAttributes;
+	/** The CMS SignedData */
+	private final transient CMSSignedData cmsSignedData;
 
-	/**
-	 * Cached list of {@code CRLBinary}s found in SignedData attribute
-	 */
-	private List<CRLBinary> signedDataCRLIdentifiers = new ArrayList<>();
+	/** Represents unsigned properties */
+	private final transient AttributeTable unsignedAttributes;
 
 	/**
 	 * The default constructor for CMSCRLSource.
@@ -74,56 +69,10 @@ public abstract class CMSCRLSource extends SignatureCRLSource {
 	 * @param cmsSignedData      {@link CMSSignedData}
 	 * @param unsignedAttributes {@link AttributeTable} unsignedAttributes
 	 */
-	public CMSCRLSource(final CMSSignedData cmsSignedData, final AttributeTable unsignedAttributes) {
+	protected CMSCRLSource(final CMSSignedData cmsSignedData, final AttributeTable unsignedAttributes) {
 		this.cmsSignedData = cmsSignedData;
 		this.unsignedAttributes = unsignedAttributes;
 		extract();
-	}
-
-	/**
-	 * Returns SignedData {@link RevocationOrigin}
-	 * 
-	 * @return {@link RevocationOrigin}
-	 */
-	protected RevocationOrigin getCMSSignedDataRevocationOrigin() {
-		return RevocationOrigin.CMS_SIGNED_DATA;
-	}
-
-	/**
-	 * Returns revocation-values {@link RevocationOrigin}
-	 * 
-	 * @return {@link RevocationOrigin}
-	 */
-	protected RevocationOrigin getRevocationValuesOrigin() {
-		return RevocationOrigin.REVOCATION_VALUES;
-	}
-
-	/**
-	 * Returns complete-revocation-refs {@link RevocationRefOrigin}
-	 * 
-	 * @return {@link RevocationRefOrigin}
-	 */
-	protected RevocationRefOrigin getCompleteRevocationRefsOrigin() {
-		return RevocationRefOrigin.COMPLETE_REVOCATION_REFS;
-	}
-
-	/**
-	 * Returns attribute-revocation-refs {@link RevocationRefOrigin}
-	 * 
-	 * @return {@link RevocationRefOrigin}
-	 */
-	protected RevocationRefOrigin getAttributeRevocationRefsOrigin() {
-		return RevocationRefOrigin.ATTRIBUTE_REVOCATION_REFS;
-	}
-
-	/**
-	 * Returns a list of {@code CRLBinaryIdentifier} found in the SignedData
-	 * container
-	 * 
-	 * @return list of {@link CRLBinary}
-	 */
-	public List<CRLBinary> getSignedDataCRLIdentifiers() {
-		return signedDataCRLIdentifiers;
 	}
 
 	private void extract() {
@@ -147,7 +96,7 @@ public abstract class CMSCRLSource extends SignatureCRLSource {
 			 * OPTIONAL, ocspVals [1] SEQUENCE OF BasicOCSPResponse OPTIONAL, otherRevVals
 			 * [2] OtherRevVals OPTIONAL}
 			 */
-			collectRevocationValues(unsignedAttributes, id_aa_ets_revocationValues, getRevocationValuesOrigin());
+			collectRevocationValues(unsignedAttributes, id_aa_ets_revocationValues, RevocationOrigin.REVOCATION_VALUES);
 
 			/*
 			 * ETSI TS 101 733 V2.2.1 (2013-04) pages 39,41 6.2.2
@@ -165,13 +114,13 @@ public abstract class CMSCRLSource extends SignatureCRLSource {
 			 * OtherRevRefs OPTIONAL } AttributeRevocationRefs ::= SEQUENCE OF CrlOcspRef
 			 * (the same as for CompleteRevocationRefs)
 			 */
-			collectRevocationRefs(id_aa_ets_revocationRefs, getCompleteRevocationRefsOrigin());
+			collectRevocationRefs(id_aa_ets_revocationRefs, RevocationRefOrigin.COMPLETE_REVOCATION_REFS);
 
 			/*
 			 * id-aa-ets-attrRevocationRefs OBJECT IDENTIFIER ::= { iso(1) member-body(2)
 			 * us(840) rsadsi(113549) pkcs(1) pkcs-9(9) smime(16) id-aa(2) 45}
 			 */
-			collectRevocationRefs(attributeRevocationRefsOid, getAttributeRevocationRefsOrigin());
+			collectRevocationRefs(attributeRevocationRefsOid, RevocationRefOrigin.ATTRIBUTE_REVOCATION_REFS);
 
 		}
 
@@ -181,7 +130,7 @@ public abstract class CMSCRLSource extends SignatureCRLSource {
 		final Store<X509CRLHolder> crLs = cmsSignedData.getCRLs();
 		final Collection<X509CRLHolder> collection = crLs.getMatches(null);
 		for (final X509CRLHolder x509CRLHolder : collection) {
-			signedDataCRLIdentifiers.add(addX509CRLHolder(x509CRLHolder, getCMSSignedDataRevocationOrigin()));
+			addX509CRLHolder(x509CRLHolder, RevocationOrigin.CMS_SIGNED_DATA);
 		}
 	}
 
@@ -201,12 +150,11 @@ public abstract class CMSCRLSource extends SignatureCRLSource {
 	 * @param crlHolder {@link X509CRLHolder} to compute values from
 	 * @param origin    {@link RevocationOrigin} indicating the list where to save
 	 *                  the object
-	 * @return {@link CRLBinary}
 	 */
-	protected CRLBinary addX509CRLHolder(X509CRLHolder crlHolder, RevocationOrigin origin) {
+	protected void addX509CRLHolder(X509CRLHolder crlHolder, RevocationOrigin origin) {
 		try {
-			return addCRLBinary(crlHolder.getEncoded(), origin);
-		} catch (IOException e) {
+			addBinary(CRLUtils.buildCRLBinary(crlHolder.getEncoded()), origin);
+		} catch (Exception e) {
 			throw new DSSException(e);
 		}
 	}
@@ -221,8 +169,8 @@ public abstract class CMSCRLSource extends SignatureCRLSource {
 					final CrlListID crlIds = crlOcspRef.getCrlids();
 					if (crlIds != null) {
 						for (final CrlValidatedID id : crlIds.getCrls()) {
-							final CRLRef crlRef = new CRLRef(id, origin);
-							addReference(crlRef, origin);
+							final CRLRef crlRef = new CRLRef(id);
+							addRevocationReference(crlRef, origin);
 						}
 					}
 				}

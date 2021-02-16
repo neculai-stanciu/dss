@@ -20,17 +20,17 @@
  */
 package eu.europa.esig.dss.asic.cades.signature.asics;
 
-import java.util.Collections;
-import java.util.List;
-
-import eu.europa.esig.dss.asic.cades.ASiCWithCAdESSignatureParameters;
-import eu.europa.esig.dss.asic.cades.ASiCWithCAdESTimestampParameters;
-import eu.europa.esig.dss.enumerations.SignatureLevel;
+import eu.europa.esig.dss.asic.cades.signature.AbstractASiCWithCAdESTestSignature;
+import eu.europa.esig.dss.asic.common.ASiCExtractResult;
+import eu.europa.esig.dss.enumerations.ASiCContainerType;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.MimeType;
-import eu.europa.esig.dss.test.signature.AbstractPkiFactoryTestDocumentSignatureService;
 
-public abstract class AbstractASiCSCAdESTestSignature extends AbstractPkiFactoryTestDocumentSignatureService<ASiCWithCAdESSignatureParameters, ASiCWithCAdESTimestampParameters> {
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public abstract class AbstractASiCSCAdESTestSignature extends AbstractASiCWithCAdESTestSignature {
 
 	@Override
 	protected MimeType getExpectedMime() {
@@ -38,20 +38,15 @@ public abstract class AbstractASiCSCAdESTestSignature extends AbstractPkiFactory
 	}
 
 	@Override
-	protected List<DSSDocument> getOriginalDocuments() {
-		return Collections.singletonList(getDocumentToSign());
+	protected ASiCContainerType getExpectedASiCContainerType() {
+		return ASiCContainerType.ASiC_S;
 	}
 
 	@Override
-	protected boolean isBaselineT() {
-		SignatureLevel signatureLevel = getSignatureParameters().getSignatureLevel();
-		return SignatureLevel.CAdES_BASELINE_LTA.equals(signatureLevel) || SignatureLevel.CAdES_BASELINE_LT.equals(signatureLevel)
-				|| SignatureLevel.CAdES_BASELINE_T.equals(signatureLevel);
-	}
-
-	@Override
-	protected boolean isBaselineLTA() {
-		return SignatureLevel.CAdES_BASELINE_LTA.equals(getSignatureParameters().getSignatureLevel());
+	protected DSSDocument getSignedData(ASiCExtractResult extractResult) {
+		List<DSSDocument> signedDocuments = extractResult.getSignedDocuments();
+		assertEquals(1, signedDocuments.size());
+		return signedDocuments.get(0);
 	}
 
 }

@@ -34,7 +34,7 @@ import eu.europa.esig.dss.enumerations.SignatureLevel;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.FileDocument;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 
 public class ASiCsXAdESExtensionASiCCAdESTest extends PKIFactoryAccess {
 	
@@ -55,7 +55,7 @@ public class ASiCsXAdESExtensionASiCCAdESTest extends PKIFactoryAccess {
 		DSSException exception = assertThrows(DSSException.class, () -> {
 			service.extendDocument(documentToExtend, signatureParameters);
 		});
-		assertEquals("Unsupported file type", exception.getMessage());
+		assertEquals("No supported signature documents found! Unable to extend the container.", exception.getMessage());
 	}
 
 	@Override

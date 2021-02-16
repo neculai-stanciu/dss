@@ -21,6 +21,7 @@
 package eu.europa.esig.dss.validation.process.bbb.fc.checks;
 
 import eu.europa.esig.dss.detailedreport.jaxb.XmlFC;
+import eu.europa.esig.dss.enumerations.ASiCContainerType;
 import eu.europa.esig.dss.enumerations.Indication;
 import eu.europa.esig.dss.enumerations.SubIndication;
 import eu.europa.esig.dss.i18n.I18nProvider;
@@ -28,18 +29,31 @@ import eu.europa.esig.dss.i18n.MessageTag;
 import eu.europa.esig.dss.policy.jaxb.MultiValuesConstraint;
 import eu.europa.esig.dss.validation.process.bbb.AbstractMultiValuesCheckItem;
 
+/**
+ * Checks if the container type is acceptable
+ */
 public class ContainerTypeCheck extends AbstractMultiValuesCheckItem<XmlFC> {
 
-	private final String containerType;
+	/** ASiC container type */
+	private final ASiCContainerType containerType;
 
-	public ContainerTypeCheck(I18nProvider i18nProvider, XmlFC result, String containerType, MultiValuesConstraint constraint) {
+	/**
+	 * Default constructor
+	 *
+	 * @param i18nProvider {@link I18nProvider}
+	 * @param result {@link XmlFC}
+	 * @param containerType {@link ASiCContainerType}
+	 * @param constraint {@link MultiValuesConstraint}
+	 */
+	public ContainerTypeCheck(I18nProvider i18nProvider, XmlFC result, ASiCContainerType containerType,
+							  MultiValuesConstraint constraint) {
 		super(i18nProvider, result, constraint);
 		this.containerType = containerType;
 	}
 
 	@Override
 	protected boolean process() {
-		return processValueCheck(containerType);
+		return processValueCheck(containerType.toString());
 	}
 
 	@Override

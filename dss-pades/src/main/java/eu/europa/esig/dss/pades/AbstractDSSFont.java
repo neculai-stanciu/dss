@@ -20,23 +20,27 @@
  */
 package eu.europa.esig.dss.pades;
 
-import java.awt.Font;
+import java.io.Serializable;
 
-public abstract class AbstractDSSFont implements DSSFont {
-	
+/**
+ * The abstract implementation of a {@code DSSFont}
+ */
+public abstract class AbstractDSSFont implements DSSFont, Serializable {
+
+	/** The default font size (12f) */
 	protected static final float DEFAULT_TEXT_SIZE = 12f;
-	
-	protected Font javaFont;
-	protected float size = DEFAULT_TEXT_SIZE;
 
-	@Override
-	public Font getJavaFont() {
-		return javaFont;
-	}
+	/** The size of the font */
+	protected float size = DEFAULT_TEXT_SIZE;
 
 	@Override
 	public float getSize() {
 		return size;
+	}
+	
+	@Override
+	public void setSize(float size) {
+		this.size = size;
 	}
 
 }

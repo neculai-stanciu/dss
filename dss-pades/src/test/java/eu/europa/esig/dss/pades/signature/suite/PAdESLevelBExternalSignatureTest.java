@@ -20,6 +20,8 @@
  */
 package eu.europa.esig.dss.pades.signature.suite;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.util.Date;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
@@ -67,7 +69,7 @@ public class PAdESLevelBExternalSignatureTest extends AbstractPAdESTestSignature
 		signingDate = new Date();
 		signatureParameters.bLevel().setSigningDate(signingDate);
 
-		service = new PAdESService(getCompleteCertificateVerifier());
+		service = new PAdESService(getOfflineCertificateVerifier());
 	}
 
 	@Override
@@ -130,6 +132,7 @@ public class PAdESLevelBExternalSignatureTest extends AbstractPAdESTestSignature
 		}
 
 		SignatureValue signatureValue = getToken().sign(toBeSigned, digestAlgo, getSignatureParameters().getMaskGenerationFunction(), getPrivateKeyEntry());
+		assertTrue(service.isValidSignatureValue(toBeSigned, signatureValue, getSigningCert()));
 		externalSignatureResult.setSignatureValue(signatureValue);
 
 		return externalSignatureResult;

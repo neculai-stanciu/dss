@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.cookbook.example.snippets;
 
 import java.io.File;
@@ -47,7 +67,7 @@ public class RestSignatureServiceSnippet extends CookbookTools {
 			parameters.setDigestAlgorithm(DigestAlgorithm.SHA256);
 			
 			// Initialize a RemoteDocument object to be signed
-			FileDocument fileToSign = new FileDocument(new File("src/test/resources/sample.xml"));
+			FileDocument fileToSign = new FileDocument(new File("src/test/resources/sample.pdf"));
 			RemoteDocument toSignDocument = new RemoteDocument(Utils.toByteArray(fileToSign.openStream()), fileToSign.getName());
 			
 			// computes the digest to be signed
@@ -61,7 +81,7 @@ public class RestSignatureServiceSnippet extends CookbookTools {
 			// Adds the signature value to the document
 			RemoteDocument signedDocument = restClient.signDocument(signDocument);
 	
-			// Define the extention parameters
+			// Define the extension parameters
 			RemoteSignatureParameters extendParameters = new RemoteSignatureParameters();
 			extendParameters.setSignatureLevel(SignatureLevel.PAdES_BASELINE_T);
 	

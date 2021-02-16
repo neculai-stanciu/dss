@@ -39,12 +39,13 @@ import eu.europa.esig.dss.model.SignatureValue;
 import eu.europa.esig.dss.model.ToBeSigned;
 import eu.europa.esig.dss.pades.PAdESSignatureParameters;
 import eu.europa.esig.dss.pades.PDFAUtils;
+import eu.europa.esig.dss.pades.SignatureFieldParameters;
 import eu.europa.esig.dss.pades.SignatureImageParameters;
 import eu.europa.esig.dss.pades.SignatureImageTextParameters;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.pdf.IPdfObjFactory;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
-import eu.europa.esig.dss.test.signature.UnmarshallingTester;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
+import eu.europa.esig.dss.test.UnmarshallingTester;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.reports.Reports;
 
@@ -64,7 +65,7 @@ public abstract class AbstractPDFAVisibleSignatureTest extends PKIFactoryAccess 
 		signatureParameters.setCertificateChain(getCertificateChain());
 		signatureParameters.setSignatureLevel(SignatureLevel.PAdES_BASELINE_B);
 
-		service = new PAdESService(getCompleteCertificateVerifier());
+		service = new PAdESService(getOfflineCertificateVerifier());
 		setCustomFactory();
 	}
 
@@ -101,8 +102,12 @@ public abstract class AbstractPDFAVisibleSignatureTest extends PKIFactoryAccess 
 	public void testGeneratedImageOnly() throws IOException {
 		SignatureImageParameters imageParameters = new SignatureImageParameters();
 		imageParameters.setImage(new InMemoryDocument(getClass().getResourceAsStream("/small-red.jpg"), "small-red.jpg", MimeType.JPEG));
-		imageParameters.setxAxis(100);
-		imageParameters.setyAxis(100);
+		
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(100);
+		fieldParameters.setOriginY(100);
+		imageParameters.setFieldParameters(fieldParameters);
+		
 		signatureParameters.setImageParameters(imageParameters);
 
 		signAndValidate(true);
@@ -113,8 +118,12 @@ public abstract class AbstractPDFAVisibleSignatureTest extends PKIFactoryAccess 
 		SignatureImageParameters imageParameters = new SignatureImageParameters();
 		// PNG with ALPHA
 		imageParameters.setImage(new InMemoryDocument(getClass().getResourceAsStream("/signature-image.png"), "signature-image.png", MimeType.PNG));
-		imageParameters.setxAxis(100);
-		imageParameters.setyAxis(100);
+		
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(100);
+		fieldParameters.setOriginY(100);
+		imageParameters.setFieldParameters(fieldParameters);
+		
 		signatureParameters.setImageParameters(imageParameters);
 
 		signAndValidate(false);
@@ -130,7 +139,7 @@ public abstract class AbstractPDFAVisibleSignatureTest extends PKIFactoryAccess 
 		assertEquals(expectedValidPDFA, PDFAUtils.validatePDFAStructure(signedDocument));
 
 		SignedDocumentValidator validator = SignedDocumentValidator.fromDocument(signedDocument);
-		validator.setCertificateVerifier(getCompleteCertificateVerifier());
+		validator.setCertificateVerifier(getOfflineCertificateVerifier());
 		Reports reports = validator.validateDocument();
 
 		DiagnosticData diagnosticData = reports.getDiagnosticData();

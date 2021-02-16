@@ -33,6 +33,7 @@ import java.util.Objects;
 @SuppressWarnings("serial")
 public class FileDocument extends CommonDocument {
 
+	/** The file */
 	private final File file;
 
 	/**
@@ -70,12 +71,22 @@ public class FileDocument extends CommonDocument {
 		}
 	}
 
+	/**
+	 * Checks if the file exists
+	 *
+	 * @return TRUE if the file exists in the file system, FALSE otherwise
+	 */
 	public boolean exists() {
 		return file.exists();
 	}
 
-	public File getParentFile() {
-		return file.getParentFile();
+	/**
+	 * Gets the {@code File}
+	 *
+	 * @return {@link File}
+	 */
+	public File getFile() {
+		return file;
 	}
 
 	@Override

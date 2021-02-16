@@ -52,7 +52,7 @@ import eu.europa.esig.dss.pades.PAdESTimestampParameters;
 import eu.europa.esig.dss.pades.SignatureImageParameters;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.simplereport.SimpleReport;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.reports.Reports;
@@ -101,7 +101,8 @@ public class PAdESServiceTest extends PKIFactoryAccess {
         signatureParameters.setSignatureLevel(SignatureLevel.PAdES_BASELINE_B);
         signAndValidate(documentToSign, signatureParameters);
         
-        exception = assertThrows(NullPointerException.class, () -> signatureParameters.bLevel().setSigningDate(null));
+		BLevelParameters bLevel = signatureParameters.bLevel();
+		exception = assertThrows(NullPointerException.class, () -> bLevel.setSigningDate(null));
         assertEquals("SigningDate cannot be null!", exception.getMessage());
 
         signatureParameters.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
@@ -154,7 +155,7 @@ public class PAdESServiceTest extends PKIFactoryAccess {
         signatureParameters.setLocation(Utils.EMPTY_STRING);
         signAndValidate(documentToSign, signatureParameters);
         
-        signatureParameters.setSignatureFieldId(Utils.EMPTY_STRING);
+        signatureParameters.getImageParameters().getFieldParameters().setFieldId(Utils.EMPTY_STRING);
         signAndValidate(documentToSign, signatureParameters);
         
         signatureParameters.setContentSize(1);
@@ -179,8 +180,7 @@ public class PAdESServiceTest extends PKIFactoryAccess {
         signAndValidate(documentToSign, signatureParameters);
         
         signatureParameters.setImageParameters(new SignatureImageParameters());
-        exception = assertThrows(DSSException.class, () -> signAndValidate(documentToSign, signatureParameters));
-        assertTrue(exception.getMessage().contains("Neither image nor text parameters are defined!"));
+        signAndValidate(documentToSign, signatureParameters);
 
         signatureParameters.setImageParameters(null);
         signatureParameters.getArchiveTimestampParameters().setFilter(null);
@@ -196,8 +196,7 @@ public class PAdESServiceTest extends PKIFactoryAccess {
         signAndValidate(documentToSign, signatureParameters);
         
         signatureParameters.getArchiveTimestampParameters().setImageParameters(new SignatureImageParameters());
-        exception = assertThrows(DSSException.class, () -> signAndValidate(documentToSign, signatureParameters));
-        assertTrue(exception.getMessage().contains("Neither image nor text parameters are defined!"));
+        signAndValidate(documentToSign, signatureParameters);
 
         signatureParameters.getArchiveTimestampParameters().setImageParameters(null);
         signatureParameters.setPermission(CertificationPermission.NO_CHANGE_PERMITTED);

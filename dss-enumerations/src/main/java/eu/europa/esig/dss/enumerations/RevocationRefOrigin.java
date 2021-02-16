@@ -20,6 +20,9 @@
  */
 package eu.europa.esig.dss.enumerations;
 
+/**
+ * List of possible revocation reference origins
+ */
 public enum RevocationRefOrigin {
 	
 	/**
@@ -31,10 +34,5 @@ public enum RevocationRefOrigin {
 	 * The revocation reference was found in the signature 'attribute-revocation-references' attribute (used in CAdES and XAdES)
 	 */
 	ATTRIBUTE_REVOCATION_REFS,
-
-	/**
-	 * The revocation reference was found in a timestamp attribute (used in CAdES)
-	 */
-	TIMESTAMP_REVOCATION_REFS,
 
 }

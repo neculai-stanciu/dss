@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import eu.europa.esig.dss.model.x509.CertificateToken;
 import eu.europa.esig.dss.spi.DSSUtils;
+import eu.europa.esig.dss.spi.x509.CertificateValidity;
 
 public class CertificateValidityTest {
 	
@@ -58,9 +59,9 @@ public class CertificateValidityTest {
 		CertificateValidity certificateValidity = new CertificateValidity(certificateToken);
 		assertFalse(certificateValidity.isValid());
 		
-		assertFalse(certificateValidity.isAttributePresent());
-		certificateValidity.setAttributePresent(true);
-		assertTrue(certificateValidity.isAttributePresent());
+		assertFalse(certificateValidity.isIssuerSerialPresent());
+		certificateValidity.setIssuerSerialPresent(true);
+		assertTrue(certificateValidity.isIssuerSerialPresent());
 
 		assertFalse(certificateValidity.isDigestEqual());
 		certificateValidity.setDigestEqual(true);

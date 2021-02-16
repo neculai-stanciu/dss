@@ -104,6 +104,11 @@
 					<xsd:documentation>Checks if one or more manifest file is present (ASiC-E) or none is present (ASiC-S)</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
+			<xsd:element name="SignedFilesPresent" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks if one or more signed files is present outside META-INF folder (ASiC-E) or only one file is present at root level (ASiC-S)</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
 			<xsd:element name="AllFilesSigned" type="LevelConstraint" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Checks in all present files in the container are covered by the signature</xsd:documentation>
@@ -130,6 +135,11 @@
 			<xsd:element name="PolicyAvailable" type="LevelConstraint" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Checks the availability of the signature policy (PDF resource,...)</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="SignaturePolicyStorePresent" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks the presence of a SignaturePolicyStore as an unsigned attribute, containing a policy content</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="PolicyHashMatch" type="LevelConstraint" minOccurs="0">
@@ -175,6 +185,21 @@
 					<xsd:documentation>Checks the presence of the signingCertificate (V1/V2) attribute</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
+			<xsd:element name="UnicitySigningCertificate" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks the unicity of the signingCertificate (V1/V2) attribute</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="SigningCertificateRefersCertificateChain" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks is the signingCertificate (V1/V2) attribute covers only those certificates present in the certificate chain</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="ReferencesToAllCertificateChainPresent" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>If the signingCertificate (V1/V2) attribute contains more than one reference, checks if the whole certificate chain is covered</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
 			<xsd:element name="CertDigestPresent" type="LevelConstraint" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Checks the presence of the signing certificate digest</xsd:documentation>
@@ -182,7 +207,12 @@
 			</xsd:element>
 			<xsd:element name="CertDigestMatch" type="LevelConstraint" minOccurs="0">
 				<xsd:annotation>
-					<xsd:documentation>Checks if the signing certificate digest match with the found signer</xsd:documentation>
+					<xsd:documentation>Checks if any signing certificate digest match with the found signer</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="AllCertDigestsMatch" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks if all signing certificate digests match with the found signer (v1/v2)</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="IssuerSerialMatch" type="LevelConstraint" minOccurs="0">
@@ -271,9 +301,9 @@
 					<xsd:documentation>Checks if the revocation date is after the best-signature-time</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
-			<xsd:element name="BestSignatureTimeBeforeIssuanceDateOfSigningCertificate" type="LevelConstraint" minOccurs="0">
+			<xsd:element name="BestSignatureTimeBeforeExpirationDateOfSigningCertificate" type="LevelConstraint" minOccurs="0">
 				<xsd:annotation>
-					<xsd:documentation>Checks if the best-signature-time is not before the creation of the signing certificate</xsd:documentation>
+					<xsd:documentation>Checks if the best-signature-time is before the expiration of the signing certificate</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="Coherence" type="LevelConstraint" minOccurs="0">
@@ -284,6 +314,11 @@
 			<xsd:element name="BasicSignatureConstraints" type="BasicSignatureConstraints" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Group of common checks on this token signature</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="SignedAttributes" type="SignedAttributesConstraints" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Group of checks on the signed attributes/properties</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
 		</xsd:sequence>
@@ -299,6 +334,26 @@
 					<xsd:element name="RevocationFreshness" type="TimeConstraint" minOccurs="0">
 						<xsd:annotation>
 							<xsd:documentation>Checks the freshness of the revocation data, the policy can expect a recent revocation data</xsd:documentation>
+						</xsd:annotation>
+					</xsd:element>
+					<xsd:element name="UnknownStatus" type="LevelConstraint" minOccurs="0">
+						<xsd:annotation>
+							<xsd:documentation>Checks the returned status is not unknown</xsd:documentation>
+						</xsd:annotation>
+					</xsd:element>
+					<xsd:element name="OCSPCertHashPresent" type="LevelConstraint" minOccurs="0">
+						<xsd:annotation>
+							<xsd:documentation>Checks if an OCSP response has certHash attribute</xsd:documentation>
+						</xsd:annotation>
+					</xsd:element>
+					<xsd:element name="OCSPCertHashMatch" type="LevelConstraint" minOccurs="0">
+						<xsd:annotation>
+							<xsd:documentation>Checks if a value of certHash attribute matches the signing certificate</xsd:documentation>
+						</xsd:annotation>
+					</xsd:element>
+					<xsd:element name="SelfIssuedOCSP" type="LevelConstraint" minOccurs="0">
+						<xsd:annotation>
+							<xsd:documentation>Checks if a checked certificate appears in the OCSP Responder's certificate path</xsd:documentation>
 						</xsd:annotation>
 					</xsd:element>
 					<xsd:element name="BasicSignatureConstraints" type="BasicSignatureConstraints" minOccurs="0">
@@ -354,6 +409,21 @@
 			<xsd:element name="SignerInformationStore" type="LevelConstraint" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Checks if CMS Signed Data Signer Information Store has only one signer information</xsd:documentation> <!-- PAdES only (!) -->
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="PdfPageDifference" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks if the signed revision has more or less pages comparing to the final provided document</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="PdfAnnotationOverlap" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks if the document contains any annotation overlaps</xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element name="PdfVisualDifference" type="LevelConstraint" minOccurs="0">
+				<xsd:annotation>
+					<xsd:documentation>Checks if the signed revision have a visual difference(s) with the provided document</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="TrustedServiceTypeIdentifier" type="MultiValuesConstraint" minOccurs="0">
@@ -427,11 +497,6 @@
 			<xsd:element name="RevocationDataFreshness" type="LevelConstraint" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Checks the revocation data freshness is concluant</xsd:documentation>
-				</xsd:annotation>
-			</xsd:element>
-			<xsd:element name="RevocationCertHashMatch" type="LevelConstraint" minOccurs="0">
-				<xsd:annotation>
-					<xsd:documentation>Checks the certHash presence (OCSP only) and if the hash match the certificate</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
 			<xsd:element name="KeyUsage" type="MultiValuesConstraint" minOccurs="0">
@@ -603,11 +668,6 @@
 			<xsd:element name="TLVersion" type="ValueConstraint" minOccurs="0">
 				<xsd:annotation>
 					<xsd:documentation>Checks if the version (TSLVersionIdentifier) of the Trusted List is equals to the given value</xsd:documentation>
-				</xsd:annotation>
-			</xsd:element>
-			<xsd:element name="TLConsistency" type="LevelConstraint" minOccurs="0">
-				<xsd:annotation>
-					<xsd:documentation>Checks if the Trusted List is consistent and haven't any incoherence which could influence the validation result</xsd:documentation>
 				</xsd:annotation>
 			</xsd:element>
 		</xsd:sequence>

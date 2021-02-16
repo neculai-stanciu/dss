@@ -31,13 +31,11 @@ import eu.europa.esig.dss.enumerations.SignatureLevel;
 import eu.europa.esig.dss.enumerations.SignaturePackaging;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.FileDocument;
-import eu.europa.esig.dss.model.MimeType;
 import eu.europa.esig.dss.signature.MultipleDocumentsSignatureService;
-import eu.europa.esig.dss.test.signature.AbstractPkiFactoryTestMultipleDocumentsSignatureService;
 import eu.europa.esig.dss.xades.XAdESSignatureParameters;
 import eu.europa.esig.dss.xades.XAdESTimestampParameters;
 
-public class XAdESMultipleManifestLevelBTest extends AbstractPkiFactoryTestMultipleDocumentsSignatureService<XAdESSignatureParameters, XAdESTimestampParameters> {
+public class XAdESMultipleManifestLevelBTest extends AbstractXAdESMultipleDocumentsSignatureService {
 
 	private MultipleDocumentsSignatureService<XAdESSignatureParameters, XAdESTimestampParameters> service;
 	private XAdESSignatureParameters signatureParameters;
@@ -62,12 +60,7 @@ public class XAdESMultipleManifestLevelBTest extends AbstractPkiFactoryTestMulti
 		signatureParameters.setSignatureLevel(SignatureLevel.XAdES_BASELINE_B);
 		signatureParameters.setManifestSignature(true);
 
-		service = new XAdESService(getCompleteCertificateVerifier());
-	}
-
-	@Override
-	protected String getSigningAlias() {
-		return GOOD_USER;
+		service = new XAdESService(getOfflineCertificateVerifier());
 	}
 
 	@Override
@@ -83,21 +76,6 @@ public class XAdESMultipleManifestLevelBTest extends AbstractPkiFactoryTestMulti
 	@Override
 	protected List<DSSDocument> getDocumentsToSign() {
 		return documentToSigns;
-	}
-
-	@Override
-	protected MimeType getExpectedMime() {
-		return MimeType.XML;
-	}
-
-	@Override
-	protected boolean isBaselineT() {
-		return false;
-	}
-
-	@Override
-	protected boolean isBaselineLTA() {
-		return false;
 	}
 
 }

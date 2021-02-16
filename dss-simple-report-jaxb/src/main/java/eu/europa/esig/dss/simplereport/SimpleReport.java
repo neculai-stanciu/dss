@@ -20,11 +20,6 @@
  */
 package eu.europa.esig.dss.simplereport;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-
 import eu.europa.esig.dss.enumerations.Indication;
 import eu.europa.esig.dss.enumerations.SignatureLevel;
 import eu.europa.esig.dss.enumerations.SignatureQualification;
@@ -36,13 +31,24 @@ import eu.europa.esig.dss.simplereport.jaxb.XmlSimpleReport;
 import eu.europa.esig.dss.simplereport.jaxb.XmlTimestamp;
 import eu.europa.esig.dss.simplereport.jaxb.XmlToken;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+
 /**
  * A SimpleReport holder to fetch values from a JAXB SimpleReport.
  */
 public class SimpleReport {
 
+	/** The JAXB Simple report */
 	private final XmlSimpleReport wrapped;
 
+	/**
+	 * Default constructor
+	 *
+	 * @param wrapped {@link XmlSimpleReport}
+	 */
 	public SimpleReport(final XmlSimpleReport wrapped) {
 		this.wrapped = wrapped;
 	}
@@ -303,6 +309,38 @@ public class SimpleReport {
 		XmlSignature xmlSignature = getSignatureById(signatureId);
 		if (xmlSignature != null) {
 			return xmlSignature.getSigningTime();
+		}
+		return null;
+	}
+
+	/**
+	 * If the signature validation is TOTAL_PASSED, the result date is the date from
+	 * when a signature extension is useful (all certificates can be covered by an
+	 * usable revocation data).
+	 * 
+	 * @param signatureId the signature id
+	 * @return the minimal useful date for a signature extension (or null)
+	 */
+	public Date getSignatureExtensionPeriodMin(final String signatureId) {
+		XmlSignature xmlSignature = getSignatureById(signatureId);
+		if (xmlSignature != null) {
+			return xmlSignature.getExtensionPeriodMin();
+		}
+		return null;
+	}
+
+	/**
+	 * If the signature validation is TOTAL_PASSED, the result date is the maximum
+	 * possible date to extend the signature (before the expiration of the signing
+	 * certificate or the latest timestamping certificate).
+	 * 
+	 * @param signatureId the signature id
+	 * @return the maximum useful date for a signature extension (or null)
+	 */
+	public Date getSignatureExtensionPeriodMax(final String signatureId) {
+		XmlSignature xmlSignature = getSignatureById(signatureId);
+		if (xmlSignature != null) {
+			return xmlSignature.getExtensionPeriodMax();
 		}
 		return null;
 	}

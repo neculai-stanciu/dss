@@ -29,12 +29,18 @@ import eu.europa.esig.dss.xades.definition.XAdESPaths;
 import eu.europa.esig.xades.XAdES111Utils;
 import eu.europa.esig.xmldsig.XSDAbstractUtils;
 
+/**
+ * XAdES 1.1.1 paths
+ */
 public class XAdES111Paths extends AbstractPaths implements XAdESPaths {
 
+	/** The path "./xades111:DigestMethod/xades111:Algorithm" */
 	public static final String DIGEST_METHOD_ALGORITHM_PATH = fromCurrentPosition(XAdES111Element.DIGEST_METHOD, XMLDSigAttribute.ALGORITHM);
 
+	/** The path "./xades111:DigestValue" */
 	public static final String DIGEST_VALUE_PATH = fromCurrentPosition(XAdES111Element.DIGEST_VALUE);
-	
+
+	/** The path "./xades111:HashDataInfo/xades111:Transforms/xades111:Transform" */
 	public static final String HASH_DATA_INFO_TRANSFORM_PATH = fromCurrentPosition(XAdES111Element.HASH_DATA_INFO, XAdES111Element.TRANSFORMS, XMLDSigElement.TRANSFORM);
 
 	@Override
@@ -110,6 +116,11 @@ public class XAdES111Paths extends AbstractPaths implements XAdESPaths {
 
 	@Override
 	public String getClaimedRoleV2Path() {
+		return null;
+	}
+
+	@Override
+	public String getSignedAssertionPath() {
 		return null;
 	}
 
@@ -273,6 +284,11 @@ public class XAdES111Paths extends AbstractPaths implements XAdESPaths {
 		return null;
 	}
 
+	@Override
+	public String getSignaturePolicyStorePath() {
+		return null;
+	}
+
 	// ------------------------------------------------
 
 	@Override
@@ -362,8 +378,18 @@ public class XAdES111Paths extends AbstractPaths implements XAdESPaths {
 	}
 
 	@Override
+	public String getCurrentSignaturePolicyDocumentationReferences() {
+		return fromCurrentPosition(XAdES111Element.SIGNATURE_POLICY_ID, XAdES111Element.SIG_POLICY_ID, XAdES111Element.DOCUMENTATION_REFERENCES);
+	}
+
+	@Override
 	public String getCurrentSignaturePolicyImplied() {
 		return fromCurrentPosition(XAdES111Element.SIGNATURE_POLICY_IMPLIED);
+	}
+	
+	@Override
+	public String getCurrentSignaturePolicyTransforms() {
+		return fromCurrentPosition(XAdES111Element.SIGNATURE_POLICY_ID, XMLDSigElement.TRANSFORMS);
 	}
 
 	@Override
@@ -384,6 +410,21 @@ public class XAdES111Paths extends AbstractPaths implements XAdESPaths {
 	@Override
 	public String getCurrentCommitmentIdentifierPath() {
 		return fromCurrentPosition(XAdES111Element.COMMITMENT_TYPE_ID, XAdES111Element.IDENTIFIER);
+	}
+
+	@Override
+	public String getCurrentCommitmentDescriptionPath() {
+		return fromCurrentPosition(XAdES111Element.COMMITMENT_TYPE_ID, XAdES111Element.DESCRIPTION);
+	}
+
+	@Override
+	public String getCurrentCommitmentDocumentationReferencesPath() {
+		return fromCurrentPosition(XAdES111Element.COMMITMENT_TYPE_ID, XAdES111Element.DOCUMENTATION_REFERENCES);
+	}
+
+	@Override
+	public String getCurrentDocumentationReference() {
+		return fromCurrentPosition(XAdES111Element.DOCUMENTATION_REFERENCE);
 	}
 
 	@Override
@@ -424,6 +465,28 @@ public class XAdES111Paths extends AbstractPaths implements XAdESPaths {
 	@Override
 	public String getCurrentQualifyingPropertiesPath() {
 		return fromCurrentPosition(XAdES111Element.QUALIFYING_PROPERTIES);
+	}
+
+	// --------------------------- Signature Policy Store
+
+	@Override
+	public String getCurrentSPDocSpecificationIdentifier() {
+		return null;
+	}
+
+	@Override
+	public String getCurrentSPDocSpecificationDescription() {
+		return null;
+	}
+
+	@Override
+	public String getCurrentSPDocSpecificationDocumentReferenceElements() {
+		return null;
+	}
+
+	@Override
+	public String getCurrentSignaturePolicyDocument() {
+		return null;
 	}
 
 	@Override

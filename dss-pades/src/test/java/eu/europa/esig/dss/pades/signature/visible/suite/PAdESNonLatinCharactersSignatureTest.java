@@ -22,8 +22,6 @@ package eu.europa.esig.dss.pades.signature.visible.suite;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.util.Date;
-
 import org.junit.jupiter.api.BeforeEach;
 
 import eu.europa.esig.dss.diagnostic.DiagnosticData;
@@ -52,17 +50,15 @@ public class PAdESNonLatinCharactersSignatureTest extends AbstractPAdESTestSigna
 		documentToSign = new InMemoryDocument(getClass().getResourceAsStream("/sample.pdf"));
 
 		signatureParameters = new PAdESSignatureParameters();
-		signatureParameters.bLevel().setSigningDate(new Date());
 		signatureParameters.setSigningCertificate(getSigningCert());
 		signatureParameters.setCertificateChain(getCertificateChain());
 		signatureParameters.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
 		signatureParameters.setLocation("Люксембург");
 		signatureParameters.setReason("DSS ხელმოწერა");
 		signatureParameters.setContactInfo("Jira");
-		signatureParameters.setSignatureFieldId("подпись1");
 
 		SignatureFieldParameters parameters = new SignatureFieldParameters();
-		parameters.setName("подпись1");
+		parameters.setFieldId("подпись1");
 		parameters.setOriginX(10);
 		parameters.setOriginY(10);
 		parameters.setHeight(150);
@@ -76,6 +72,9 @@ public class PAdESNonLatinCharactersSignatureTest extends AbstractPAdESTestSigna
 		textParameters.setText("Моя подпись 1");
 		textParameters.setFont(new DSSFileFont(getClass().getResourceAsStream("/fonts/OpenSansBold.ttf")));
 		signatureImageParameters.setTextParameters(textParameters);
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setFieldId("подпись1");
+		signatureImageParameters.setFieldParameters(fieldParameters);
 		signatureParameters.setImageParameters(signatureImageParameters);
 
 		padesService = new PAdESService(getCompleteCertificateVerifier());

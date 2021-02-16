@@ -27,17 +27,19 @@ import org.junit.jupiter.api.Test;
 import eu.europa.esig.dss.cookbook.example.CookbookTools;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.SignatureLevel;
+import eu.europa.esig.dss.enumerations.SignerTextHorizontalAlignment;
+import eu.europa.esig.dss.enumerations.SignerTextPosition;
+import eu.europa.esig.dss.enumerations.SignerTextVerticalAlignment;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.InMemoryDocument;
 import eu.europa.esig.dss.model.SignatureValue;
 import eu.europa.esig.dss.model.ToBeSigned;
 import eu.europa.esig.dss.pades.DSSFileFont;
+import eu.europa.esig.dss.pades.DSSFont;
 import eu.europa.esig.dss.pades.PAdESSignatureParameters;
+import eu.europa.esig.dss.pades.SignatureFieldParameters;
 import eu.europa.esig.dss.pades.SignatureImageParameters;
 import eu.europa.esig.dss.pades.SignatureImageTextParameters;
-import eu.europa.esig.dss.pades.SignatureImageTextParameters.SignerTextHorizontalAlignment;
-import eu.europa.esig.dss.pades.SignatureImageTextParameters.SignerTextPosition;
-import eu.europa.esig.dss.pades.SignatureImageTextParameters.SignerTextVerticalAlignment;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.pdf.pdfbox.PdfBoxNativeObjectFactory;
 import eu.europa.esig.dss.token.DSSPrivateKeyEntry;
@@ -84,16 +86,20 @@ public class SignPdfPadesBVisibleTest extends CookbookTools {
 			SignatureImageParameters imageParameters = new SignatureImageParameters();
 			// set an image
 			imageParameters.setImage(new InMemoryDocument(getClass().getResourceAsStream("/signature-pen.png")));
+			
+			// initialize signature field parameters
+			SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+			imageParameters.setFieldParameters(fieldParameters);
 			// the origin is the left and top corner of the page
-			imageParameters.setxAxis(200);
-			imageParameters.setyAxis(400);
-			imageParameters.setWidth(300);
-			imageParameters.setHeight(200);
+			fieldParameters.setOriginX(200);
+			fieldParameters.setOriginY(400);
+			fieldParameters.setWidth(300);
+			fieldParameters.setHeight(200);
 			// end::parameters-configuration[]
 			
 			// tag::font[]
 			// Initialize text to generate for visual signature
-			DSSFileFont font = new DSSFileFont(getClass().getResourceAsStream("/fonts/OpenSansRegular.ttf"));
+			DSSFont font = new DSSFileFont(getClass().getResourceAsStream("/fonts/OpenSansRegular.ttf"));
 			// end::font[]
 			// tag::text[]
 			// Instantiates a SignatureImageTextParameters object
@@ -102,8 +108,6 @@ public class SignPdfPadesBVisibleTest extends CookbookTools {
 			textParameters.setFont(font);
 			// Defines the text content
 			textParameters.setText("My visual signature \n #1");
-			// Specifies the text size value (the default font size is 12pt)
-			textParameters.setSize(14);
 			// Defines the color of the characters
 			textParameters.setTextColor(Color.BLUE);
 			// Defines the background color for the area filled out by the text

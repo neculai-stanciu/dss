@@ -20,60 +20,94 @@
  */
 package eu.europa.esig.dss.asic.common.validation;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import eu.europa.esig.dss.asic.common.ASiCExtractResult;
-import eu.europa.esig.dss.asic.common.ASiCUtils;
 import eu.europa.esig.dss.asic.common.AbstractASiCContainerExtractor;
 import eu.europa.esig.dss.enumerations.ASiCContainerType;
 import eu.europa.esig.dss.model.DSSDocument;
-import eu.europa.esig.dss.model.DSSException;
+import eu.europa.esig.dss.model.x509.revocation.crl.CRL;
+import eu.europa.esig.dss.model.x509.revocation.ocsp.OCSP;
 import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.AdvancedSignature;
 import eu.europa.esig.dss.validation.ContainerInfo;
+import eu.europa.esig.dss.validation.DiagnosticDataBuilder;
 import eu.europa.esig.dss.validation.DocumentValidator;
+import eu.europa.esig.dss.validation.ListRevocationSource;
 import eu.europa.esig.dss.validation.ManifestFile;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
+import eu.europa.esig.dss.validation.ValidationContext;
+import eu.europa.esig.dss.validation.scope.SignatureScopeFinder;
 import eu.europa.esig.dss.validation.timestamp.TimestampToken;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * The abstract class for an ASiC container validation
+ */
 public abstract class AbstractASiCContainerValidator extends SignedDocumentValidator {
 
+	/** List of signature document validators */
 	protected List<DocumentValidator> signatureValidators;
 
+	/** List of timestamp document validators */
 	protected List<DocumentValidator> timestampValidators;
 
+	/** The container extraction result */
 	protected ASiCExtractResult extractResult;
 
-	private ASiCContainerType containerType;
-	
+	/** List of manifest files */
+	private List<ManifestFile> manifestFiles;
+
 	/**
-	 * Default constructor used with reflexion (see DefaultDocumentValidator)
+	 * The default constructor
+	 * 
+	 * @param document {@link DSSDocument} to be validated
 	 */
-	private AbstractASiCContainerValidator() {
-		this.document = null;
+	protected AbstractASiCContainerValidator(final DSSDocument document) {
+		this(document, null);
 	}
 
-	protected AbstractASiCContainerValidator(final DSSDocument document) {
+	/**
+	 * Constructor with a custom {@code SignatureScopeFinder}
+	 * 
+	 * @param document             {@link DSSDocument} to be validated
+	 * @param signatureScopeFinder {@link SignatureScopeFinder} to be used
+	 */
+	protected AbstractASiCContainerValidator(final DSSDocument document,
+			final SignatureScopeFinder signatureScopeFinder) {
+		super(signatureScopeFinder);
 		this.document = document;
 	}
 
-	protected void analyseEntries() {
-		AbstractASiCContainerExtractor extractor = getArchiveExtractor();
+	/**
+	 * Extracts documents from a container
+	 */
+	protected void extractEntries() {
+		AbstractASiCContainerExtractor extractor = getContainerExtractor();
 		extractResult = extractor.extract();
-		containerType = ASiCUtils.getContainerType(document, extractResult.getMimeTypeDocument(), extractResult.getZipComment(),
-				extractResult.getSignedDocuments());
-		if (ASiCContainerType.ASiC_S.equals(containerType)) {
-			extractResult.setContainerDocuments(getArchiveDocuments(extractResult.getSignedDocuments()));
-		}
 	}
 
-	protected abstract AbstractASiCContainerExtractor getArchiveExtractor();
+	/**
+	 * Returns the relevant container extractor
+	 *
+	 * @return {@link AbstractASiCContainerExtractor}
+	 */
+	protected abstract AbstractASiCContainerExtractor getContainerExtractor();
+	
+	@Override
+	protected DiagnosticDataBuilder createDiagnosticDataBuilder(final ValidationContext validationContext, List<AdvancedSignature> signatures,
+			final ListRevocationSource<CRL> listCRLSource, final ListRevocationSource<OCSP> listOCSPSource) {
+		ASiCContainerDiagnosticDataBuilder builder = (ASiCContainerDiagnosticDataBuilder) super.createDiagnosticDataBuilder(
+				validationContext, signatures, listCRLSource, listOCSPSource);
+		builder.containerInfo(getContainerInfo());
+		return builder;
+	}
 
-	public ASiCContainerType getContainerType() {
-		return containerType;
+	@Override
+	protected ASiCContainerDiagnosticDataBuilder initializeDiagnosticDataBuilder() {
+		return new ASiCContainerDiagnosticDataBuilder();
 	}
 
 	/**
@@ -81,19 +115,15 @@ public abstract class AbstractASiCContainerValidator extends SignedDocumentValid
 	 * 
 	 * @return a DTO with the container information
 	 */
-	@Override
 	protected ContainerInfo getContainerInfo() {
 		ContainerInfo containerInfo = new ContainerInfo();
-		containerInfo.setContainerType(containerType);
+		containerInfo.setContainerType(extractResult.getContainerType());
 		containerInfo.setZipComment(extractResult.getZipComment());
 
 		DSSDocument mimeTypeDocument = extractResult.getMimeTypeDocument();
 		if (mimeTypeDocument != null) {
 			String mimeTypeContent = new String(DSSUtils.toByteArray(mimeTypeDocument));
-			containerInfo.setMimeTypeFilePresent(true);
 			containerInfo.setMimeTypeContent(mimeTypeContent);
-		} else {
-			containerInfo.setMimeTypeFilePresent(false);
 		}
 
 		List<DSSDocument> originalSignedDocuments = extractResult.getSignedDocuments();
@@ -120,7 +150,12 @@ public abstract class AbstractASiCContainerValidator extends SignedDocumentValid
 		return Collections.emptyList();
 	}
 
-	protected abstract List<ManifestFile> getManifestFilesDecriptions();
+	/**
+	 * Returns a list of parser ManifestFiles
+	 *
+	 * @return a list of {@link ManifestFile}s
+	 */
+	protected abstract List<ManifestFile> getManifestFilesDescriptions();
 
 	@Override
 	protected List<AdvancedSignature> getAllSignatures() {
@@ -131,18 +166,16 @@ public abstract class AbstractASiCContainerValidator extends SignedDocumentValid
 
 		List<DocumentValidator> currentValidators = getSignatureValidators();
 		for (DocumentValidator signatureValidator : currentValidators) {
-			List<AdvancedSignature> currentValidatorSignatures = new ArrayList<>();
-			for (AdvancedSignature advancedSignature : signatureValidator.getSignatures()) {
-				currentValidatorSignatures.add(advancedSignature);
-				currentValidatorSignatures.addAll(advancedSignature.getCounterSignatures());
+
+			List<AdvancedSignature> signatures = signatureValidator.getSignatures();
+			for (AdvancedSignature advancedSignature : signatures) {
+				allSignatureList.add(advancedSignature);
+				appendCounterSignatures(allSignatureList, advancedSignature);
 			}
 
-			// XML/CMS validator
-			signatureValidator.findSignatureScopes(currentValidatorSignatures);
-
-			allSignatureList.addAll(currentValidatorSignatures);
 		}
 
+		findSignatureScopes(allSignatureList);
 		attachExternalTimestamps(allSignatureList);
 
 		return allSignatureList;
@@ -152,79 +185,144 @@ public abstract class AbstractASiCContainerValidator extends SignedDocumentValid
 	public List<AdvancedSignature> getSignatures() {
 		final List<AdvancedSignature> signatureList = new ArrayList<>();
 		for (DocumentValidator validator : getSignatureValidators()) {
-			signatureList.addAll(validator.getSignatures());
+			for (final AdvancedSignature advancedSignature : validator.getSignatures()) {
+				signatureList.add(advancedSignature);
+			}
 		}
+		
 		return signatureList;
 	}
 
+	/**
+	 * Returns a list of validators for signature documents embedded into the container
+	 *
+	 * @return a list of {@link DocumentValidator}s
+	 */
 	protected abstract List<DocumentValidator> getSignatureValidators();
 
-	protected List<DSSDocument> getSignatureDocuments() {
-		return extractResult.getSignatureDocuments();
+	/**
+	 * Returns a container type
+	 *
+	 * @return {@link ASiCContainerType}
+	 */
+	public ASiCContainerType getContainerType() {
+		return extractResult.getContainerType();
 	}
 
-	protected List<DSSDocument> getSignedDocuments() {
-		return extractResult.getSignedDocuments();
-	}
-
-	protected List<DSSDocument> getAllDocuments() {
+	/**
+	 * Returns a list of all embedded  documents
+	 *
+	 * @return a list of all embedded {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getAllDocuments() {
 		return extractResult.getAllDocuments();
 	}
 
-	protected List<DSSDocument> getManifestDocuments() {
+	/**
+	 * Returns a list of embedded signature documents
+	 *
+	 * @return a list of signature {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getSignatureDocuments() {
+		return extractResult.getSignatureDocuments();
+	}
+
+	/**
+	 * Returns a list of embedded signed documents
+	 *
+	 * @return a list of signed {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getSignedDocuments() {
+		return extractResult.getSignedDocuments();
+	}
+
+	/**
+	 * Returns a list of embedded signature manifest documents
+	 *
+	 * @return a list of signature manifest {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getManifestDocuments() {
 		return extractResult.getManifestDocuments();
 	}
 
-	protected List<DSSDocument> getTimestampDocuments() {
+	/**
+	 * Returns a list of embedded timestamp documents
+	 *
+	 * @return a list of timestamp {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getTimestampDocuments() {
 		return extractResult.getTimestampDocuments();
 	}
 
-	protected List<DSSDocument> getArchiveManifestDocuments() {
+	/**
+	 * Returns a list of embedded archive manifest documents
+	 *
+	 * @return a list of archive manifest {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getArchiveManifestDocuments() {
 		return extractResult.getArchiveManifestDocuments();
 	}
-	
-	protected List<DSSDocument> getAllManifestDocuments() {
+
+	/**
+	 * Returns a list of all embedded manifest documents
+	 *
+	 * @return a list of manifest {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getAllManifestDocuments() {
 		return extractResult.getAllManifestDocuments();
 	}
-	
-	protected List<DSSDocument> getArchiveDocuments() {
+
+	/**
+	 * Returns a list of archive documents embedded the container
+	 *
+	 * @return a list of archive {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getArchiveDocuments() {
 		return extractResult.getContainerDocuments();
 	}
 
-	protected DSSDocument getMimeTypeDocument() {
+	/**
+	 * Returns a mimetype document
+	 *
+	 * @return {@link DSSDocument} mimetype
+	 */
+	public DSSDocument getMimeTypeDocument() {
 		return extractResult.getMimeTypeDocument();
 	}
-	
-	protected List<ManifestFile> getManifestFiles() {
+
+	/**
+	 * Returns a list of unsupported documents from the container
+	 *
+	 * @return a list of unsupported documents {@link DSSDocument}s
+	 */
+	public List<DSSDocument> getUnsupportedDocuments() {
+		return extractResult.getUnsupportedDocuments();
+	}
+
+	/**
+	 * Returns a list of parser Manifest files
+	 *
+	 * @return a list of {@link ManifestFile}s
+	 */
+	public List<ManifestFile> getManifestFiles() {
 		if (manifestFiles == null) {
-			manifestFiles = getManifestFilesDecriptions();
+			manifestFiles = getManifestFilesDescriptions();
 		}
 		return manifestFiles;
 	}
-	
-	private List<DSSDocument> getArchiveDocuments(List<DSSDocument> foundDocuments) {
-		List<DSSDocument> archiveDocuments = new ArrayList<>();
-		for (DSSDocument document : foundDocuments) {
-			if (ASiCUtils.isASiCSArchive(document)) {
-				archiveDocuments.addAll(ASiCUtils.getPackageZipContent(document));
-				break; // only one "package.zip" is possible
-			}
-		}
-		return archiveDocuments;
-	}
 
+	/**
+	 * Returns a list of "package.zip" documents
+	 *
+	 * @param retrievedDocs the retrieved signed documents
+	 * @return a list of {@link DSSDocument}s
+	 */
 	protected List<DSSDocument> getSignedDocumentsASiCS(List<DSSDocument> retrievedDocs) {
-		if (Utils.collectionSize(retrievedDocs) > 1) {
-			throw new DSSException("ASiC-S : More than one file");
+		List<DSSDocument> containerDocuments = extractResult.getContainerDocuments();
+		if (Utils.isCollectionNotEmpty(containerDocuments)) {
+			return containerDocuments;
 		}
-		DSSDocument uniqueDoc = retrievedDocs.get(0);
-		List<DSSDocument> result = new ArrayList<>();
-		if (ASiCUtils.isASiCSArchive(uniqueDoc)) {
-			result.addAll(ASiCUtils.getPackageZipContent(uniqueDoc));
-		} else {
-			result.add(uniqueDoc);
-		}
-		return result;
+		return retrievedDocs;
 	}
 
 }

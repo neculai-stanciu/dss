@@ -20,20 +20,33 @@
  */
 package eu.europa.esig.dss.enumerations;
 
+/**
+ * Possible origin types for a certificate
+ */
 public enum CertificateOrigin {
-	
+
+	/** Certificates extracted from KeyInfo element, XAdES specific */
 	KEY_INFO,
-	
+
+	/** Certificates extracted from a signed attribute (CAdES) */
+	SIGNED_DATA,
+
+	/** Certificates extracted from CertificateValues element */
 	CERTIFICATE_VALUES,
-	
-	ATTR_AUTORITIES_CERT_VALUES,
-	
+
+	/** Certificates extracted from AttrAuthoritiesCertValues element, XAdES specific */
+	ATTR_AUTHORITIES_CERT_VALUES,
+
+	/** Certificates extracted from TimeStampValidationData element */
 	TIMESTAMP_VALIDATION_DATA,
-	
+
+	/** Certificates extracted from DSS dictionary, PAdES specific */
 	DSS_DICTIONARY,
-	
+
+	/** Certificates extracted from VRI dictionary, PAdES specific */
 	VRI_DICTIONARY,
-	
-	TIMESTAMP_CERTIFICATE_VALUES,
+
+	/** Certificates extracted from an OCSP Response */
+	BASIC_OCSP_RESP
 
 }

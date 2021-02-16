@@ -59,14 +59,14 @@ public class PAdESLevelBCertificationTest extends AbstractPAdESTestSignature {
 		signatureParameters.setReason("DSS testing");
 		signatureParameters.setContactInfo("Jira");
 		signatureParameters.setPermission(CertificationPermission.MINIMAL_CHANGES_PERMITTED);
-		signatureParameters.setSignatureFieldId("signature-test");
 		SignatureImageParameters signatureImageParameters = new SignatureImageParameters();
 		SignatureImageTextParameters textParameters = new SignatureImageTextParameters();
 		textParameters.setText("TEST FIELD");
 		signatureImageParameters.setTextParameters(textParameters);
+		signatureImageParameters.getFieldParameters().setFieldId("signature-test");
 		signatureParameters.setImageParameters(signatureImageParameters);
 
-		service = new PAdESService(getCompleteCertificateVerifier());
+		service = new PAdESService(getOfflineCertificateVerifier());
 	}
 
 	@Override

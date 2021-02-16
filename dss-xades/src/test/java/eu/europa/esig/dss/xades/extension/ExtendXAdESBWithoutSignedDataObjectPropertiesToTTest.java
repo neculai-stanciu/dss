@@ -35,7 +35,7 @@ import eu.europa.esig.dss.enumerations.SignaturePackaging;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.FileDocument;
 import eu.europa.esig.dss.simplereport.SimpleReport;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.SignaturePolicyProvider;
 import eu.europa.esig.dss.validation.reports.Reports;
@@ -78,7 +78,7 @@ public class ExtendXAdESBWithoutSignedDataObjectPropertiesToTTest extends PKIFac
 
 		String signatureId = diagnosticData.getFirstSignatureId();
 		List<DSSDocument> retrievedOriginalDocuments = validator.getOriginalDocuments(signatureId);
-		assertEquals(1, retrievedOriginalDocuments.size());
+		assertEquals(2, retrievedOriginalDocuments.size());
 		
 		assertEquals(SignatureLevel.XAdES_BASELINE_T, diagnosticData.getSignatureFormat(simpleReport.getFirstSignatureId()));
 	}

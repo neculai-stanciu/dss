@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.security.MessageDigest;
+import java.util.Calendar;
 import java.util.Date;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +40,7 @@ import eu.europa.esig.dss.pades.PAdESSignatureParameters;
 import eu.europa.esig.dss.pades.PAdESTimestampParameters;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.signature.DocumentSignatureService;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.token.DSSPrivateKeyEntry;
 import eu.europa.esig.dss.utils.Utils;
 
@@ -95,25 +96,27 @@ public class DigestStabilityTest extends PKIFactoryAccess {
 	public void differentSigningDateGetDifferentDigest() throws Exception {
 		DSSDocument toBeSigned = new InMemoryDocument(getClass().getResourceAsStream("/sample.pdf"), "sample.pdf", MimeType.PDF);
 
-		Date signingDate1 = new Date();
-		ToBeSigned dataToSign1 = getDataToSign(toBeSigned, privateKeyEntry, signingDate1);
+		Calendar calendar = Calendar.getInstance();
 
-		Thread.sleep(1);
+		Date firstTime = calendar.getTime();
+		ToBeSigned dataToSign1 = getDataToSign(toBeSigned, privateKeyEntry, firstTime);
 
-		Date signingDate2 = new Date();
-		ToBeSigned dataToSign2 = getDataToSign(toBeSigned, privateKeyEntry, signingDate2);
+		calendar.add(Calendar.MILLISECOND, 1);
+
+		Date secondTime = calendar.getTime();
+		ToBeSigned dataToSign2 = getDataToSign(toBeSigned, privateKeyEntry, secondTime);
 
 		final MessageDigest messageDigest = DigestAlgorithm.SHA256.getMessageDigest();
 		byte[] digest1 = messageDigest.digest(dataToSign1.getBytes());
 		byte[] digest2 = messageDigest.digest(dataToSign2.getBytes());
 
-		assertNotEquals("Digests must be different (Date1:" + signingDate1.getTime() + " / Date2:" + signingDate2.getTime() + ")", Utils.toBase64(digest1),
+		assertNotEquals("Digests must be different (Date1:" + firstTime + " / Date2:" + secondTime + ")", Utils.toBase64(digest1),
 				Utils.toBase64(digest2));
 	}
 
 	private ToBeSigned getDataToSign(DSSDocument toBeSigned, DSSPrivateKeyEntry privateKeyEntry, Date signingDate) {
 
-		DocumentSignatureService<PAdESSignatureParameters, PAdESTimestampParameters> service = new PAdESService(getCompleteCertificateVerifier());
+		DocumentSignatureService<PAdESSignatureParameters, PAdESTimestampParameters> service = new PAdESService(getOfflineCertificateVerifier());
 
 		PAdESSignatureParameters signatureParameters = new PAdESSignatureParameters();
 		signatureParameters.bLevel().setSigningDate(signingDate);

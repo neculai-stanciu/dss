@@ -20,26 +20,25 @@
  */
 package eu.europa.esig.dss.validation.process.bbb.xcv.sub;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.util.Calendar;
-import java.util.List;
-
-import javax.xml.bind.DatatypeConverter;
-
-import org.junit.jupiter.api.Test;
-
 import eu.europa.esig.dss.detailedreport.jaxb.XmlConstraint;
 import eu.europa.esig.dss.detailedreport.jaxb.XmlStatus;
 import eu.europa.esig.dss.detailedreport.jaxb.XmlSubXCV;
 import eu.europa.esig.dss.diagnostic.CertificateRevocationWrapper;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlCertificateRevocation;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlRevocation;
+import eu.europa.esig.dss.enumerations.CertificateStatus;
 import eu.europa.esig.dss.enumerations.RevocationReason;
 import eu.europa.esig.dss.policy.jaxb.Level;
 import eu.europa.esig.dss.policy.jaxb.LevelConstraint;
 import eu.europa.esig.dss.validation.process.bbb.AbstractTestCheck;
-import eu.europa.esig.dss.validation.process.bbb.xcv.sub.checks.CertificateOnHoldCheck;
+import eu.europa.esig.dss.validation.process.bbb.xcv.sub.checks.CertificateNotOnHoldCheck;
+import org.junit.jupiter.api.Test;
+
+import javax.xml.bind.DatatypeConverter;
+import java.util.Calendar;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CertificateOnHoldCheckTest extends AbstractTestCheck {
 
@@ -52,12 +51,12 @@ public class CertificateOnHoldCheckTest extends AbstractTestCheck {
 		constraint.setLevel(Level.FAIL);
 
 		XmlCertificateRevocation xcr = new XmlCertificateRevocation();
-		xcr.setStatus(true);
+		xcr.setStatus(CertificateStatus.GOOD);
 		XmlRevocation xr = new XmlRevocation();
 		xcr.setRevocation(xr);
 
 		XmlSubXCV result = new XmlSubXCV();
-		CertificateOnHoldCheck cohc = new CertificateOnHoldCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(), constraint);
+		CertificateNotOnHoldCheck cohc = new CertificateNotOnHoldCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(), constraint);
 		cohc.execute();
 
 		List<XmlConstraint> constraints = result.getConstraint();
@@ -71,14 +70,14 @@ public class CertificateOnHoldCheckTest extends AbstractTestCheck {
 		constraint.setLevel(Level.FAIL);
 
 		XmlCertificateRevocation xcr = new XmlCertificateRevocation();
-		xcr.setStatus(false);
+		xcr.setStatus(CertificateStatus.REVOKED);
 		xcr.setRevocationDate(CAL1.getTime());
 		xcr.setReason(RevocationReason.CERTIFICATE_HOLD);
 		XmlRevocation xr = new XmlRevocation();
 		xcr.setRevocation(xr);
 
 		XmlSubXCV result = new XmlSubXCV();
-		CertificateOnHoldCheck cohc = new CertificateOnHoldCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(), constraint);
+		CertificateNotOnHoldCheck cohc = new CertificateNotOnHoldCheck(i18nProvider, result, new CertificateRevocationWrapper(xcr), CAL2.getTime(), constraint);
 		cohc.execute();
 
 		List<XmlConstraint> constraints = result.getConstraint();

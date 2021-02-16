@@ -20,17 +20,31 @@
  */
 package eu.europa.esig.dss.enumerations;
 
+/**
+ * Defines possible types for an ASiC container
+ */
 public enum ASiCContainerType {
 
-	/* Associated Signature Container Simple */
+	/** Associated Signature Container Simple */
 	ASiC_S,
 
-	/* Associated Signature Container Extended */
+	/** Associated Signature Container Extended */
 	ASiC_E;
+	
+	/**
+	 * Returns the ASiCContainerType based on the name (String)
+	 *
+	 * @param name
+	 *            the asic container type's name to retrieve
+	 * @return the ASiCContainerType
+	 */
+	public static ASiCContainerType valueByName(String name) {
+		return valueOf(name.replace('-', '_'));
+	}
 
-	public String getReadable() {
-		String name = this.name();
-		return name.replace('_', '-');
+	@Override
+	public String toString() {
+		return super.toString().replace('_', '-');
 	}
 
 }

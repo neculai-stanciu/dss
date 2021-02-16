@@ -22,17 +22,20 @@ package eu.europa.esig.dss.spi.tsl.identifier;
 
 import eu.europa.esig.dss.spi.tsl.PivotInfo;
 
+/**
+ * The identifier for a Pivot
+ */
 public class PivotIdentifier extends AbstractTLIdentifier {
 
 	private static final long serialVersionUID = 1005934627070196126L;
 
+	/**
+	 * Default constructor
+	 *
+	 * @param pivotInfo {@link PivotInfo}
+	 */
 	public PivotIdentifier(PivotInfo pivotInfo) {
-		super(pivotInfo);
-	}
-	
-	@Override
-	public String asXmlId() {
-		return "P-" + super.asXmlId();
+		super("P-", pivotInfo);
 	}
 
 }

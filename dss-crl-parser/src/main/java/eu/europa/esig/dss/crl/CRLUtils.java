@@ -20,19 +20,25 @@
  */
 package eu.europa.esig.dss.crl;
 
+import eu.europa.esig.dss.model.x509.CertificateToken;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.cert.X509CRLEntry;
 import java.util.Iterator;
 import java.util.ServiceLoader;
 
-import eu.europa.esig.dss.model.x509.CertificateToken;
-
+/**
+ * The utils for dealing with CRLs
+ */
 public class CRLUtils {
 
 	private CRLUtils() {
 	}
 
+	/**
+	 * The provided implementation of CRL utils
+	 */
 	private static ICRLUtils impl;
 
 	static {
@@ -43,6 +49,16 @@ public class CRLUtils {
 					"No implementation found for ICRLUtils in classpath, please choose between dss-crl-parser-stream or dss-crl-parser-x509crl");
 		}
 		impl = iterator.next();
+	}
+
+	/**
+	 * Takes binaries and returns DER encoded {@code CRLBinary}
+	 * 
+	 * @param binaries byte array representing an encoded CRL
+	 * @return DER encoded {@link CRLBinary}
+	 */
+	public static CRLBinary buildCRLBinary(final byte[] binaries) {
+		return impl.buildCRLBinary(binaries);
 	}
 
 	/**

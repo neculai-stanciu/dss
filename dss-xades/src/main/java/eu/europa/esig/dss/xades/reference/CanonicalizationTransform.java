@@ -20,29 +20,36 @@
  */
 package eu.europa.esig.dss.xades.reference;
 
-import org.w3c.dom.Node;
-
 import eu.europa.esig.dss.definition.DSSNamespace;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.xades.DSSXMLUtils;
 import eu.europa.esig.dss.xades.definition.XAdESNamespaces;
 
-public class CanonicalizationTransform extends AbstractTransform {
+/**
+ * Performs a canonicalization transform on XML NodeSet
+ */
+public class CanonicalizationTransform extends ComplexTransform {
 
-	public CanonicalizationTransform( String canonicalizationAlgorithm) {
+	/**
+	 * Default constructor
+	 *
+	 * @param canonicalizationAlgorithm {@link String} url
+	 */
+	public CanonicalizationTransform(String canonicalizationAlgorithm) {
 		this(XAdESNamespaces.XMLDSIG, canonicalizationAlgorithm);
 	}
 
+	/**
+	 * Constructor with namespace
+	 *
+	 * @param xmlDSigNamespace {@link DSSNamespace}
+	 * @param canonicalizationAlgorithm {@link String} url
+	 */
 	public CanonicalizationTransform(DSSNamespace xmlDSigNamespace, String canonicalizationAlgorithm) {
 		super(xmlDSigNamespace, canonicalizationAlgorithm);
 		if (!DSSXMLUtils.canCanonicalize(canonicalizationAlgorithm)) {
 			throw new DSSException(String.format("The provided canonicalization method [%s] is not supported!", canonicalizationAlgorithm));
 		}
-	}
-
-	@Override
-	public byte[] getBytesAfterTranformation(Node node) {
-		return DSSXMLUtils.canonicalizeSubtree(algorithm, node);
 	}
 
 }

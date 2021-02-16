@@ -20,13 +20,6 @@
  */
 package eu.europa.esig.dss.service.tsp;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.TimestampBinary;
@@ -36,15 +29,22 @@ import eu.europa.esig.dss.service.http.commons.TimestampDataLoader;
 import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.spi.client.http.NativeHTTPDataLoader;
 import eu.europa.esig.dss.utils.Utils;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class OnlineTSPSourceTest {
 
 	private static final String TSA_URL = "http://dss.nowina.lu/pki-factory/tsa/good-tsa";
+	private static final String ED25519_TSA_URL = "http://dss.nowina.lu/pki-factory/tsa/Ed25519-good-tsa";
 
 	@Test
 	public void testWithoutNonce() {
 		OnlineTSPSource tspSource = new OnlineTSPSource(TSA_URL);
-		tspSource.setDataLoader(new TimestampDataLoader());
 
 		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA1, "Hello world".getBytes());
 		TimestampBinary timeStampResponse = tspSource.getTimeStampResponse(DigestAlgorithm.SHA1, digest);
@@ -52,10 +52,20 @@ public class OnlineTSPSourceTest {
 		assertTrue(Utils.isArrayNotEmpty(timeStampResponse.getBytes()));
 	}
 
+	@Test
+	public void testEd25519WithoutNonce() {
+		OnlineTSPSource tspSource = new OnlineTSPSource(ED25519_TSA_URL, new TimestampDataLoader());
+
+		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA1, "Hello world".getBytes());
+		TimestampBinary timeStampResponse = tspSource.getTimeStampResponse(DigestAlgorithm.SHA1, digest);
+		assertNotNull(timeStampResponse);
+		assertTrue(Utils.isArrayNotEmpty(timeStampResponse.getBytes()));
+//		System.out.println(Utils.toBase64(timeStampResponse.getBytes()));
+	}
+
 	@Disabled("Content-type is required")
 	public void testWithCommonDataLoader() {
-		OnlineTSPSource tspSource = new OnlineTSPSource(TSA_URL);
-		tspSource.setDataLoader(new CommonsDataLoader());
+		OnlineTSPSource tspSource = new OnlineTSPSource(TSA_URL, new CommonsDataLoader());
 
 		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA1, "Hello world".getBytes());
 		TimestampBinary timeStampResponse = tspSource.getTimeStampResponse(DigestAlgorithm.SHA1, digest);
@@ -89,7 +99,6 @@ public class OnlineTSPSourceTest {
 	@Test
 	public void testWithNonce() {
 		OnlineTSPSource tspSource = new OnlineTSPSource(TSA_URL);
-		tspSource.setDataLoader(new TimestampDataLoader());
 		tspSource.setNonceSource(new SecureRandomNonceSource());
 
 		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA1, "Hello world".getBytes());
@@ -100,15 +109,25 @@ public class OnlineTSPSourceTest {
 
 	@Test
 	public void testNotTSA() {
-		Exception exception = assertThrows(DSSException.class, () -> {
-			OnlineTSPSource tspSource = new OnlineTSPSource();
-			tspSource.setDataLoader(new TimestampDataLoader());
-			tspSource.setTspServer("http://www.google.com");
+		OnlineTSPSource tspSource = new OnlineTSPSource();
+		tspSource.setTspServer("http://www.google.com");
 
-			byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA1, "Hello world".getBytes());
-			tspSource.getTimeStampResponse(DigestAlgorithm.SHA1, digest);
-		});
+		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA1, "Hello world".getBytes());
+
+		Exception exception = assertThrows(DSSException.class,
+				() -> tspSource.getTimeStampResponse(DigestAlgorithm.SHA1, digest));
 		assertTrue(exception.getMessage().contains("Unable to process POST call for url [http://www.google.com]"));
+	}
+
+	@Test
+	public void testNullDataLoader() {
+		OnlineTSPSource tspSource = new OnlineTSPSource(TSA_URL);
+		tspSource.setDataLoader(null);
+
+		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA1, "Hello world".getBytes());
+		Exception exception = assertThrows(NullPointerException.class,
+				() -> tspSource.getTimeStampResponse(DigestAlgorithm.SHA1, digest));
+		assertEquals("DataLoader is not provided !", exception.getMessage());
 	}
 
 }

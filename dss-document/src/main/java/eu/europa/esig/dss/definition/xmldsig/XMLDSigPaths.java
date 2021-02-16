@@ -28,6 +28,8 @@ public class XMLDSigPaths extends AbstractPaths {
 
 	public static final String MANIFEST_TYPE = "http://www.w3.org/2000/09/xmldsig#Manifest";
 
+	public static final String COUNTER_SIGNATURE_TYPE = "http://uri.etsi.org/01903#CountersignedSignature";
+
 	public static final String SIGNATURE_PATH = fromCurrentPosition(XMLDSigElement.SIGNATURE);
 
 	public static final String ALL_SIGNATURES_PATH = all(XMLDSigElement.SIGNATURE);
@@ -49,11 +51,18 @@ public class XMLDSigPaths extends AbstractPaths {
 	public static final String SIGNATURE_VALUE_PATH = fromCurrentPosition(XMLDSigElement.SIGNATURE_VALUE);
 
 	public static final String SIGNATURE_VALUE_ID_PATH = fromCurrentPosition(XMLDSigElement.SIGNATURE_VALUE, XMLDSigAttribute.ID);
+	
+	public static final String ALL_SIGNATURE_VALUES_PATH = all(XMLDSigElement.SIGNATURE_VALUE);
 
 	public static final String KEY_INFO_PATH = fromCurrentPosition(XMLDSigElement.KEY_INFO);
 
 	public static final String KEY_INFO_X509_CERTIFICATE_PATH = fromCurrentPosition(XMLDSigElement.KEY_INFO, XMLDSigElement.X509_DATA,
 			XMLDSigElement.X509_CERTIFICATE);
+
+	public static final String SIGNATURE_PROPERTIES_PATH = fromCurrentPosition(XMLDSigElement.OBJECT, XMLDSigElement.SIGNATURE_PROPERTIES);
+
+	public static final String SIGNATURE_PROPERTY_PATH = fromCurrentPosition(XMLDSigElement.OBJECT, XMLDSigElement.SIGNATURE_PROPERTIES,
+			XMLDSigElement.SIGNATURE_PROPERTY);
 
 	// ----------------------- For digest
 

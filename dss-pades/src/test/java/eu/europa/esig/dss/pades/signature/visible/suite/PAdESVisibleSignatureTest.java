@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- * 
+ *
  * This file is part of the "DSS - Digital Signature Services" project.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -31,18 +31,26 @@ import org.junit.jupiter.api.Test;
 
 import eu.europa.esig.dss.diagnostic.DiagnosticData;
 import eu.europa.esig.dss.enumerations.SignatureLevel;
+import eu.europa.esig.dss.enumerations.SignerTextHorizontalAlignment;
+import eu.europa.esig.dss.enumerations.SignerTextPosition;
+import eu.europa.esig.dss.enumerations.SignerTextVerticalAlignment;
+import eu.europa.esig.dss.enumerations.VisualSignatureAlignmentHorizontal;
+import eu.europa.esig.dss.enumerations.VisualSignatureAlignmentVertical;
+import eu.europa.esig.dss.enumerations.VisualSignatureRotation;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.InMemoryDocument;
 import eu.europa.esig.dss.model.MimeType;
 import eu.europa.esig.dss.model.SignatureValue;
 import eu.europa.esig.dss.model.ToBeSigned;
+import eu.europa.esig.dss.pades.DSSFileFont;
 import eu.europa.esig.dss.pades.PAdESSignatureParameters;
 import eu.europa.esig.dss.pades.PAdESTimestampParameters;
+import eu.europa.esig.dss.pades.SignatureFieldParameters;
 import eu.europa.esig.dss.pades.SignatureImageParameters;
 import eu.europa.esig.dss.pades.SignatureImageTextParameters;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.signature.DocumentSignatureService;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.reports.Reports;
 
@@ -62,7 +70,7 @@ public class PAdESVisibleSignatureTest extends PKIFactoryAccess {
 		signatureParameters.setCertificateChain(getCertificateChain());
 		signatureParameters.setSignatureLevel(SignatureLevel.PAdES_BASELINE_B);
 
-		service = new PAdESService(getCompleteCertificateVerifier());
+		service = new PAdESService(getOfflineCertificateVerifier());
 	}
 
 	@Test
@@ -81,8 +89,12 @@ public class PAdESVisibleSignatureTest extends PKIFactoryAccess {
 	public void testGeneratedImageOnly() throws IOException {
 		SignatureImageParameters imageParameters = new SignatureImageParameters();
 		imageParameters.setImage(getSmallRedJPG());
-		imageParameters.setxAxis(100);
-		imageParameters.setyAxis(100);
+
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(100);
+		fieldParameters.setOriginY(100);
+		imageParameters.setFieldParameters(fieldParameters);
+
 		signatureParameters.setImageParameters(imageParameters);
 
 		signAndValidate();
@@ -92,8 +104,12 @@ public class PAdESVisibleSignatureTest extends PKIFactoryAccess {
 	public void testGeneratedImageOnlyPNG() throws IOException {
 		SignatureImageParameters imageParameters = new SignatureImageParameters();
 		imageParameters.setImage(getPngPicture());
-		imageParameters.setxAxis(100);
-		imageParameters.setyAxis(100);
+
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(100);
+		fieldParameters.setOriginY(100);
+		imageParameters.setFieldParameters(fieldParameters);
+
 		signatureParameters.setImageParameters(imageParameters);
 
 		signAndValidate();
@@ -103,10 +119,14 @@ public class PAdESVisibleSignatureTest extends PKIFactoryAccess {
 	public void testGeneratedImageOnlyPNGWithSize() throws IOException {
 		SignatureImageParameters imageParameters = new SignatureImageParameters();
 		imageParameters.setImage(getSmallRedJPG());
-		imageParameters.setxAxis(100);
-		imageParameters.setyAxis(100);
-		imageParameters.setWidth(50);
-		imageParameters.setHeight(50);
+
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(100);
+		fieldParameters.setOriginY(100);
+		fieldParameters.setWidth(50);
+		fieldParameters.setHeight(50);
+		imageParameters.setFieldParameters(fieldParameters);
+
 		signatureParameters.setImageParameters(imageParameters);
 
 		signAndValidate();
@@ -116,34 +136,95 @@ public class PAdESVisibleSignatureTest extends PKIFactoryAccess {
 	public void testGeneratedImageOnlyPngUnZoom() throws IOException {
 		SignatureImageParameters imageParameters = new SignatureImageParameters();
 		imageParameters.setImage(getPngPicture());
-		imageParameters.setxAxis(100);
-		imageParameters.setyAxis(100);
+
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(100);
+		fieldParameters.setOriginY(100);
+		imageParameters.setFieldParameters(fieldParameters);
+
 		imageParameters.setZoom(50); // reduces 50%
 		signatureParameters.setImageParameters(imageParameters);
 
 		signAndValidate();
 	}
-	
+
 	@Test
 	public void testCMYKPicture() throws IOException {
 		SignatureImageParameters imageParameters = new SignatureImageParameters();
 		imageParameters.setImage(getCMYKPicture());
-		imageParameters.setxAxis(100);
-		imageParameters.setyAxis(100);
+
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(100);
+		fieldParameters.setOriginY(100);
+		imageParameters.setFieldParameters(fieldParameters);
+
 		signatureParameters.setImageParameters(imageParameters);
+
+		signAndValidate();
+	}
+
+	@Test
+	public void dss2090Test() throws IOException {
+		String signature = "Some long signature text with\nmultiple\nnewlines in them\nfor testing";
+
+		SignatureImageParameters imageParams = new SignatureImageParameters();
+		imageParams.setAlignmentHorizontal(VisualSignatureAlignmentHorizontal.LEFT);
+		imageParams.setAlignmentVertical(VisualSignatureAlignmentVertical.TOP);
+		imageParams.setRotation(VisualSignatureRotation.AUTOMATIC);
+
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setOriginX(71);
+		fieldParameters.setOriginY(71);
+		imageParams.setFieldParameters(fieldParameters);
+
+		SignatureImageTextParameters textParameters = new SignatureImageTextParameters();
+		DSSFileFont fileFont = DSSFileFont.initializeDefault();
+		fileFont.setSize(10);
+		textParameters.setFont(fileFont);
+		textParameters.setTextColor(Color.BLACK);
+		textParameters.setBackgroundColor(Color.WHITE);
+		textParameters.setPadding(0f);
+		textParameters.setSignerTextVerticalAlignment(SignerTextVerticalAlignment.TOP);
+		textParameters.setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.LEFT);
+		textParameters.setSignerTextPosition(SignerTextPosition.TOP);
+		textParameters.setText(signature);
+		imageParams.setTextParameters(textParameters);
+
+		signatureParameters.setImageParameters(imageParams);
+
+		signAndValidate();
+	}
+
+	@Test
+	public void dss2227Test() throws IOException {
+		String signature = "Signature 1\nSignature 12345";
+
+		SignatureImageParameters imageParams = new SignatureImageParameters();
+		SignatureFieldParameters fieldParameters = new SignatureFieldParameters();
+		fieldParameters.setWidth(100);
+		fieldParameters.setHeight(100);
+		imageParams.setFieldParameters(fieldParameters);
+
+		SignatureImageTextParameters textParameters = new SignatureImageTextParameters();
+		textParameters.setSignerTextPosition(SignerTextPosition.TOP);
+		textParameters.setText(signature);
+		imageParams.setTextParameters(textParameters);
+
+		signatureParameters.setImageParameters(imageParams);
 
 		signAndValidate();
 	}
 
 	private void signAndValidate() throws IOException {
 		ToBeSigned dataToSign = service.getDataToSign(documentToSign, signatureParameters);
-		SignatureValue signatureValue = getToken().sign(dataToSign, signatureParameters.getDigestAlgorithm(), getPrivateKeyEntry());
+		SignatureValue signatureValue = getToken().sign(dataToSign, signatureParameters.getDigestAlgorithm(),
+				getPrivateKeyEntry());
 		DSSDocument signedDocument = service.signDocument(documentToSign, signatureParameters, signatureValue);
 
 		// signedDocument.save("target/test.pdf");
 
 		SignedDocumentValidator validator = SignedDocumentValidator.fromDocument(signedDocument);
-		validator.setCertificateVerifier(getCompleteCertificateVerifier());
+		validator.setCertificateVerifier(getOfflineCertificateVerifier());
 		Reports reports = validator.validateDocument();
 
 		DiagnosticData diagnosticData = reports.getDiagnosticData();
@@ -160,7 +241,8 @@ public class PAdESVisibleSignatureTest extends PKIFactoryAccess {
 	}
 
 	private DSSDocument getPngPicture() {
-		return new InMemoryDocument(getClass().getResourceAsStream("/signature-image.png"), "signature-image.png", MimeType.PNG);
+		return new InMemoryDocument(getClass().getResourceAsStream("/signature-image.png"), "signature-image.png",
+				MimeType.PNG);
 	}
 
 	private DSSDocument getCMYKPicture() {

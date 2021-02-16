@@ -45,14 +45,13 @@ import eu.europa.esig.dss.model.SignatureValue;
 import eu.europa.esig.dss.model.TimestampBinary;
 import eu.europa.esig.dss.model.ToBeSigned;
 import eu.europa.esig.dss.spi.DSSUtils;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.executor.signature.DefaultSignatureProcessExecutor;
 import eu.europa.esig.dss.validation.reports.Reports;
 import eu.europa.esig.dss.validation.timestamp.TimestampInclude;
 import eu.europa.esig.dss.validation.timestamp.TimestampToken;
-import eu.europa.esig.dss.xades.DSSXMLUtils;
 import eu.europa.esig.dss.xades.XAdESSignatureParameters;
 import eu.europa.esig.validationreport.enums.ObjectType;
 import eu.europa.esig.validationreport.jaxb.SignatureValidationReportType;
@@ -88,9 +87,14 @@ public class XAdESIndividualDataTimestampTest extends PKIFactoryAccess {
 		signatureParameters.setSignatureLevel(SignatureLevel.XAdES_BASELINE_B);
 
 		String usedCanonicalizationAlgo = Canonicalizer.ALGO_ID_C14N11_OMIT_COMMENTS;
-		byte[] docCanonicalized = DSSXMLUtils.canonicalize(usedCanonicalizationAlgo, DSSUtils.toByteArray(fileToBeIndividualTimestamped));
+		
+		// Instead of manual canicalization, the one defined in the timestamp is being used
+		// byte[] docCanonicalized = DSSXMLUtils.canonicalize(usedCanonicalizationAlgo, DSSUtils.toByteArray(fileToBeIndividualTimestamped));
+		// byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA256, docCanonicalized);
 
-		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA256, docCanonicalized);
+		// do not apply canonicalization, because base64 results to an octet-stream
+		byte[] digest = DSSUtils.digest(DigestAlgorithm.SHA256, DSSUtils.toByteArray(fileToBeIndividualTimestamped));
+		
 		TimestampBinary bcTst = getAlternateGoodTsa().getTimeStampResponse(DigestAlgorithm.SHA256, digest);
 
 		TimestampToken tst = new TimestampToken(bcTst.getBytes(), TimestampType.INDIVIDUAL_DATA_OBJECTS_TIMESTAMP);
@@ -109,7 +113,7 @@ public class XAdESIndividualDataTimestampTest extends PKIFactoryAccess {
 		DefaultSignatureProcessExecutor processExecutor = new DefaultSignatureProcessExecutor();
 		validator.setValidationTime(currentTime);
 		validator.setProcessExecutor(processExecutor);
-		validator.setCertificateVerifier(getCompleteCertificateVerifier());
+		validator.setCertificateVerifier(getOfflineCertificateVerifier());
 		Reports reports = validator.validateDocument();
 
 		DiagnosticData diagnosticData = reports.getDiagnosticData();

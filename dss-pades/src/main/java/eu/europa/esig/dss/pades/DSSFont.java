@@ -21,20 +21,31 @@
 package eu.europa.esig.dss.pades;
 
 import java.awt.Font;
-import java.io.InputStream;
 
+/**
+ * Defines a font used for a visual signature creation with text
+ */
 public interface DSSFont {
-	
+
+	/**
+	 * Gets the JAVA instance of the Font
+	 *
+	 * @return {@link Font}
+	 */
 	Font getJavaFont();
-	
+
+	/**
+	 * Gets size of the font
+	 *
+	 * @return float value
+	 */
 	float getSize();
-	
+
+	/**
+	 * Sets size of the font
+	 *
+	 * @param size float value
+	 */
 	void setSize(float size);
-	
-	boolean isLogicalFont();
-	
-	InputStream getInputStream();
-	
-	String getName();
 
 }

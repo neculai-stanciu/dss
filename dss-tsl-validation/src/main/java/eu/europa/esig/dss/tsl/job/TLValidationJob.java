@@ -20,27 +20,14 @@
  */
 package eu.europa.esig.dss.tsl.job;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import eu.europa.esig.dss.alert.Alert;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.spi.client.http.DSSFileLoader;
+import eu.europa.esig.dss.spi.tsl.LOTLInfo;
+import eu.europa.esig.dss.spi.tsl.TLInfo;
 import eu.europa.esig.dss.spi.tsl.TLValidationJobSummary;
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource;
-import eu.europa.esig.dss.tsl.alerts.Alert;
-import eu.europa.esig.dss.tsl.alerts.Alerter;
+import eu.europa.esig.dss.tsl.alerts.TLValidationJobAlerter;
 import eu.europa.esig.dss.tsl.cache.CacheCleaner;
 import eu.europa.esig.dss.tsl.cache.CacheKey;
 import eu.europa.esig.dss.tsl.cache.access.CacheAccessByKey;
@@ -57,6 +44,20 @@ import eu.europa.esig.dss.tsl.sync.AcceptAllStrategy;
 import eu.europa.esig.dss.tsl.sync.SynchronizationStrategy;
 import eu.europa.esig.dss.tsl.sync.TrustedListCertificateSourceSynchronizer;
 import eu.europa.esig.dss.utils.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * The main class performing the TL/LOTL download / parsing / validation tasks
@@ -66,6 +67,9 @@ public class TLValidationJob {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TLValidationJob.class);
 
+	/**
+	 * Provides methods to manage the asynchronous behaviour
+	 */
 	private ExecutorService executorService = Executors.newCachedThreadPool();
 	
 	/**
@@ -119,18 +123,38 @@ public class TLValidationJob {
 	private boolean debug = false;
 	
 	/**
-     * List of all alerts
+     * List of LOTL info alerts
      */
-    private List<Alert<?>> alerts;
+    private List<Alert<LOTLInfo>> lotlAlerts;
+	
+	/**
+     * List of TL info alerts
+     */
+    private List<Alert<TLInfo>> tlAlerts;
 
+	/**
+	 * Sets the additional TL Sources
+	 *
+	 * @param trustedListSources {@link TLSource}s
+	 */
 	public void setTrustedListSources(TLSource... trustedListSources) {
 		this.trustedListSources = trustedListSources;
 	}
 
+	/**
+	 * Sets the LOTL Sources
+	 *
+	 * @param listOfTrustedListSources {@link LOTLSource}s
+	 */
 	public void setListOfTrustedListSources(LOTLSource... listOfTrustedListSources) {
 		this.listOfTrustedListSources = listOfTrustedListSources;
 	}
 
+	/**
+	 * Sets the execution service to manage the asynchronous behaviour
+	 *
+	 * @param executorService {@link ExecutorService}
+	 */
 	public void setExecutorService(ExecutorService executorService) {
 		if (this.executorService != null && !this.executorService.isShutdown()) {
 			this.executorService.shutdownNow();
@@ -197,11 +221,21 @@ public class TLValidationJob {
 	}
 	
 	/**
-	 * Sets the alerts to be checked
-	 * @param alerts
+	 * Sets the LOTL alerts to be processed
+	 * 
+	 * @param lotlAlerts a list of {@link Alert}s
 	 */
-	public void setAlerts(List<Alert<?>> alerts) {
-	    this.alerts = alerts;
+	public void setLOTLAlerts(List<Alert<LOTLInfo>> lotlAlerts) {
+	    this.lotlAlerts = lotlAlerts;
+	}
+	
+	/**
+	 * Sets the TL alerts to be processed
+	 * 
+	 * @param tlAlerts a list of {@link Alert}s
+	 */
+	public void setTLAlerts(List<Alert<TLInfo>> tlAlerts) {
+	    this.tlAlerts = tlAlerts;
 	}
 
 	/**
@@ -258,10 +292,10 @@ public class TLValidationJob {
 		executeTLSourcesAnalysis(currentTLSources, dssFileLoader);
 
 		// alerts()
-		if (Utils.isCollectionNotEmpty(alerts)) {
+		if (Utils.isCollectionNotEmpty(lotlAlerts) || Utils.isCollectionNotEmpty(tlAlerts)) {
 			TLValidationJobSummary jobSummary = getSummary();
-			Alerter alerter = new Alerter(jobSummary, alerts);
-			alerter.detectChanges();
+			TLValidationJobAlerter alerter = new TLValidationJobAlerter(lotlAlerts, tlAlerts);
+			alerter.detectChanges(jobSummary);
 		}
 
 		if (debug) {

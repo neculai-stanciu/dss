@@ -20,11 +20,6 @@
  */
 package eu.europa.esig.dss.pades.signature;
 
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.x509.CertificateToken;
@@ -34,55 +29,58 @@ import eu.europa.esig.dss.pades.validation.PDFDocumentValidator;
 import eu.europa.esig.dss.pdf.DSSDictionaryCallback;
 import eu.europa.esig.dss.pdf.IPdfObjFactory;
 import eu.europa.esig.dss.pdf.PDFSignatureService;
-import eu.europa.esig.dss.signature.SignatureExtension;
 import eu.europa.esig.dss.spi.x509.tsp.TSPSource;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.AdvancedSignature;
 import eu.europa.esig.dss.validation.CertificateVerifier;
-import eu.europa.esig.dss.validation.DefaultAdvancedSignature.ValidationDataForInclusion;
 import eu.europa.esig.dss.validation.ValidationContext;
+import eu.europa.esig.dss.validation.ValidationDataForInclusion;
+import eu.europa.esig.dss.validation.ValidationDataForInclusionBuilder;
 import eu.europa.esig.dss.validation.timestamp.TimestampToken;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * PAdES Baseline LT signature
  */
-class PAdESLevelBaselineLT implements SignatureExtension<PAdESSignatureParameters> {
+class PAdESLevelBaselineLT extends PAdESLevelBaselineT {
 
+	/** The used CertificateVerifier */
 	private final CertificateVerifier certificateVerifier;
-	private final TSPSource tspSource;
-	private final IPdfObjFactory pdfObjectFactory;
-
-	PAdESLevelBaselineLT(final TSPSource tspSource, final CertificateVerifier certificateVerifier, final IPdfObjFactory pdfObjectFactory) {
-		this.certificateVerifier = certificateVerifier;
-		this.tspSource = tspSource;
-		this.pdfObjectFactory = pdfObjectFactory;
-	}
 
 	/**
-	 * @param document
-	 * @param parameters
-	 * @return
-	 * @throws IOException
+	 * The default constructor
+	 *
+	 * @param tspSource {@link TSPSource} to use
+	 * @param certificateVerifier {@link CertificateVerifier}
+	 * @param pdfObjectFactory {@link IPdfObjFactory}
 	 */
+	PAdESLevelBaselineLT(final TSPSource tspSource, final CertificateVerifier certificateVerifier,
+						 final IPdfObjFactory pdfObjectFactory) {
+		super(tspSource, pdfObjectFactory);
+		this.certificateVerifier = certificateVerifier;
+	}
+
 	@Override
-	public DSSDocument extendSignatures(DSSDocument document, final PAdESSignatureParameters parameters) throws DSSException {
+	public DSSDocument extendSignatures(DSSDocument document, final PAdESSignatureParameters parameters) {
+		assertExtensionPossible(document);
 
 		// check if needed to extends with PAdESLevelBaselineT
-		PDFDocumentValidator pdfDocumentValidator = new PDFDocumentValidator(document);
-		pdfDocumentValidator.setCertificateVerifier(certificateVerifier);
+		PDFDocumentValidator pdfDocumentValidator = getPDFDocumentValidator(document, parameters);
 
 		List<AdvancedSignature> signatures = pdfDocumentValidator.getSignatures();
 		if (Utils.isCollectionEmpty(signatures)) {
-			throw new DSSException("No signature to be extended");
+			throw new DSSException("No signatures found to be extended!");
 		}
 
 		for (final AdvancedSignature signature : signatures) {
-			if (isRequireDocumentTimestamp(signature)) {
-				final PAdESLevelBaselineT padesLevelBaselineT = new PAdESLevelBaselineT(tspSource, pdfObjectFactory);
-				document = padesLevelBaselineT.extendSignatures(document, parameters);
-
-				pdfDocumentValidator = new PDFDocumentValidator(document);
-				pdfDocumentValidator.setCertificateVerifier(certificateVerifier);
+			if (requiresDocumentTimestamp(signature)) {
+				// extend to T-level
+				document = super.extendSignatures(document, parameters);
+				pdfDocumentValidator = getPDFDocumentValidator(document, parameters);
 				break;
 			}
 		}
@@ -100,15 +98,23 @@ class PAdESLevelBaselineLT implements SignatureExtension<PAdESSignatureParameter
 			}
 		}
 
-		final PDFSignatureService signatureService = pdfObjectFactory.newPAdESSignatureService();
-		return signatureService.addDssDictionary(document, callbacks);
+		final PDFSignatureService signatureService = newPdfSignatureService();
+		return signatureService.addDssDictionary(document, callbacks, parameters.getPasswordProtection());
 
 	}
+	
+	private PDFDocumentValidator getPDFDocumentValidator(DSSDocument document, PAdESSignatureParameters parameters) {
+		PDFDocumentValidator pdfDocumentValidator = new PDFDocumentValidator(document);
+		pdfDocumentValidator.setCertificateVerifier(certificateVerifier);
+		pdfDocumentValidator.setPasswordProtection(parameters.getPasswordProtection());
+		return pdfDocumentValidator;
+	}
 
-	private boolean isRequireDocumentTimestamp(AdvancedSignature signature) {
-		List<TimestampToken> signatureTimestamps = signature.getSignatureTimestamps();
-		List<TimestampToken> archiveTimestamps = signature.getArchiveTimestamps();
-		return Utils.isCollectionEmpty(signatureTimestamps) && Utils.isCollectionEmpty(archiveTimestamps);
+	private boolean requiresDocumentTimestamp(AdvancedSignature signature) {
+		List<TimestampToken> timestamps = new ArrayList<>(signature.getSignatureTimestamps());
+		timestamps.addAll(signature.getArchiveTimestamps());
+		timestamps.addAll(signature.getDocumentTimestamps());
+		return Utils.isCollectionEmpty(timestamps);
 	}
 	
 	private void assertExtendSignaturePossible(PAdESSignature padesSignature) throws DSSException {
@@ -117,21 +123,29 @@ class PAdESLevelBaselineLT implements SignatureExtension<PAdESSignatureParameter
 		}
 	}
 
+	/**
+	 * Validates the signature and returns the DSS dictionary to be created
+	 *
+	 * @param signature {@link PAdESSignature} to validate
+	 * @return {@link DSSDictionaryCallback}
+	 */
 	protected DSSDictionaryCallback validate(PAdESSignature signature) {
 
 		final ValidationContext validationContext = signature.getSignatureValidationContext(certificateVerifier);
-		final ValidationDataForInclusion validationDataForInclusion = signature.getValidationDataForInclusion(validationContext);
+		
+		final ValidationDataForInclusionBuilder validationDataForInclusionBuilder = 
+				new ValidationDataForInclusionBuilder(validationContext, signature.getCompleteCertificateSource());
+		final ValidationDataForInclusion validationDataForInclusion = validationDataForInclusionBuilder.build();
 		
 		DSSDictionaryCallback validationCallback = new DSSDictionaryCallback();
 		validationCallback.setSignature(signature);
 
-		Set<CertificateToken> certificatesForInclusion = validationDataForInclusion.certificateTokens;
-		certificatesForInclusion.addAll(signature.getCertificateListWithinSignatureAndTimestamps());
+		Set<CertificateToken> certificatesForInclusion = validationDataForInclusion.getCertificateTokens();
 		// DSS dictionary includes current certs + discovered with AIA,...
 		validationCallback.setCertificates(certificatesForInclusion);
 
-		validationCallback.setCrls(validationDataForInclusion.crlTokens);
-		validationCallback.setOcsps(validationDataForInclusion.ocspTokens);
+		validationCallback.setCrls(validationDataForInclusion.getCrlTokens());
+		validationCallback.setOcsps(validationDataForInclusion.getOcspTokens());
 
 		return validationCallback;
 	}

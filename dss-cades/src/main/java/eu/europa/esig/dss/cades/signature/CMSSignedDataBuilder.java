@@ -20,20 +20,18 @@
  */
 package eu.europa.esig.dss.cades.signature;
 
-import static org.bouncycastle.asn1.cms.CMSObjectIdentifiers.id_ri_ocsp_response;
-import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_basic;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-
+import eu.europa.esig.dss.cades.CAdESSignatureParameters;
+import eu.europa.esig.dss.cades.CMSUtils;
+import eu.europa.esig.dss.model.DSSDocument;
+import eu.europa.esig.dss.model.DSSException;
+import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.signature.BaselineBCertificateSelector;
+import eu.europa.esig.dss.spi.DSSASN1Utils;
+import eu.europa.esig.dss.spi.DSSUtils;
+import eu.europa.esig.dss.spi.x509.revocation.crl.CRLToken;
+import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPToken;
+import eu.europa.esig.dss.validation.CertificateVerifier;
+import eu.europa.esig.dss.validation.ValidationDataForInclusion;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.cms.AttributeTable;
 import org.bouncycastle.asn1.cms.CMSObjectIdentifiers;
@@ -50,7 +48,6 @@ import org.bouncycastle.cms.DefaultSignedAttributeTableGenerator;
 import org.bouncycastle.cms.SignerId;
 import org.bouncycastle.cms.SignerInfoGenerator;
 import org.bouncycastle.cms.SignerInfoGeneratorBuilder;
-import org.bouncycastle.cms.SignerInformation;
 import org.bouncycastle.cms.SimpleAttributeTableGenerator;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.DigestCalculatorProvider;
@@ -58,23 +55,28 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.util.CollectionStore;
 import org.bouncycastle.util.Store;
 
-import eu.europa.esig.dss.cades.CAdESSignatureParameters;
-import eu.europa.esig.dss.cades.CMSUtils;
-import eu.europa.esig.dss.cades.validation.CAdESSignature;
-import eu.europa.esig.dss.model.DSSDocument;
-import eu.europa.esig.dss.model.DSSException;
-import eu.europa.esig.dss.model.x509.CertificateToken;
-import eu.europa.esig.dss.signature.BaselineBCertificateSelector;
-import eu.europa.esig.dss.spi.DSSASN1Utils;
-import eu.europa.esig.dss.spi.DSSUtils;
-import eu.europa.esig.dss.spi.x509.revocation.crl.CRLToken;
-import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPToken;
-import eu.europa.esig.dss.validation.CertificateVerifier;
-import eu.europa.esig.dss.validation.DefaultAdvancedSignature.ValidationDataForInclusion;
-import eu.europa.esig.dss.validation.ValidationContext;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 
+import static org.bouncycastle.asn1.cms.CMSObjectIdentifiers.id_ri_ocsp_response;
+import static org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers.id_pkix_ocsp_basic;
+
+/**
+ * Builds a CMSSignedData
+ */
 public class CMSSignedDataBuilder {
 
+	/**
+	 * The CertificateVerifier to use for a certificate chain validation
+	 */
 	private final CertificateVerifier certificateVerifier;
 
 	/**
@@ -107,10 +109,9 @@ public class CMSSignedDataBuilder {
 	 *            the original signed data if extending an existing signature. null otherwise.
 	 * @return the bouncycastle signed data generator which signs the document and adds the required signed and unsigned
 	 *         CMS attributes
-	 * @throws eu.europa.esig.dss.model.DSSException
 	 */
 	protected CMSSignedDataGenerator createCMSSignedDataGenerator(final CAdESSignatureParameters parameters, final ContentSigner contentSigner,
-			final SignerInfoGeneratorBuilder signerInfoGeneratorBuilder, final CMSSignedData originalSignedData) throws DSSException {
+			final SignerInfoGeneratorBuilder signerInfoGeneratorBuilder, final CMSSignedData originalSignedData) {
 		try {
 			final CMSSignedDataGenerator generator = new CMSSignedDataGenerator();
 			final SignerInfoGenerator signerInfoGenerator = getSignerInfoGenerator(signerInfoGeneratorBuilder, contentSigner, parameters);
@@ -253,9 +254,23 @@ public class CMSSignedDataBuilder {
 		}
 	}
 
+	/**
+	 * Generates a new CMSSignedData with incorporation of defined validation data stores
+	 *
+	 * @param cmsSignedData {@link CMSSignedData} to be re-generated
+	 * @param detachedContents a list of {@link DSSDocument}s to add (shall be one)
+	 * @param certificatesStore {@link Store} of certificates
+	 * @param attributeCertificatesStore {@link Store} of attribute certificates
+	 * @param crlsStore {@link Store} of CRLs
+	 * @param otherRevocationInfoFormatStoreBasic {@link Store} of other revocation data
+	 * @param otherRevocationInfoFormatStoreOcsp {@link Store} of OCSPs
+	 * @return {@link CMSSignedData}
+	 */
 	@SuppressWarnings("rawtypes")
-	protected CMSSignedData regenerateCMSSignedData(CMSSignedData cmsSignedData, List<DSSDocument> detachedContents, Store certificatesStore,
-			Store attributeCertificatesStore, Store crlsStore, Store otherRevocationInfoFormatStoreBasic, Store otherRevocationInfoFormatStoreOcsp) {
+	protected CMSSignedData regenerateCMSSignedData(CMSSignedData cmsSignedData, List<DSSDocument> detachedContents,
+													Store certificatesStore, Store attributeCertificatesStore,
+													Store crlsStore, Store otherRevocationInfoFormatStoreBasic,
+													Store otherRevocationInfoFormatStoreOcsp) {
 		try {
 
 			final CMSSignedDataGenerator cmsSignedDataGenerator = new CMSSignedDataGenerator();
@@ -265,11 +280,12 @@ public class CMSSignedDataBuilder {
 			cmsSignedDataGenerator.addCRLs(crlsStore);
 			cmsSignedDataGenerator.addOtherRevocationInfo(id_pkix_ocsp_basic, otherRevocationInfoFormatStoreBasic);
 			cmsSignedDataGenerator.addOtherRevocationInfo(id_ri_ocsp_response, otherRevocationInfoFormatStoreOcsp);
-			final boolean encapsulate = cmsSignedData.getSignedContent() != null;
+
+			final boolean encapsulate = !CMSUtils.isDetachedSignature(cmsSignedData);
 			if (!encapsulate) {
 				// CAdES can only sign one document
 				final DSSDocument doc = detachedContents.get(0);
-				final CMSTypedData content = CMSUtils.getContentToBeSign(doc);
+				final CMSTypedData content = CMSUtils.getContentToBeSigned(doc);
 				cmsSignedData = cmsSignedDataGenerator.generate(content, encapsulate);
 			} else {
 				cmsSignedData = cmsSignedDataGenerator.generate(cmsSignedData.getSignedContent(), encapsulate);
@@ -283,20 +299,16 @@ public class CMSSignedDataBuilder {
 	/**
 	 * Extends the provided {@code cmsSignedData} with the required validation data
 	 * @param cmsSignedData {@link CMSSignedData} to be extended
-	 * @param signerInformation the related {@link SignerInformation} to use
+	 * @param validationDataForInclusion the {@link ValidationDataForInclusion} to be included into the cmsSignedData
 	 * @param detachedContents list of detached {@link DSSDocument}s
 	 * @return extended {@link CMSSignedData}
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public CMSSignedData extendCMSSignedData(CMSSignedData cmsSignedData, SignerInformation signerInformation, List<DSSDocument> detachedContents) {
-		CAdESSignature cadesSignature = new CAdESSignature(cmsSignedData, signerInformation, certificateVerifier.createValidationPool());
-		cadesSignature.setDetachedContents(detachedContents);
-		
-		final ValidationContext validationContext = cadesSignature.getSignatureValidationContext(certificateVerifier);
-		final ValidationDataForInclusion validationDataForInclusion = cadesSignature.getValidationDataForInclusion(validationContext);
+	public CMSSignedData extendCMSSignedData(CMSSignedData cmsSignedData, ValidationDataForInclusion validationDataForInclusion, 
+			List<DSSDocument> detachedContents) {
 
 		Store<X509CertificateHolder> certificatesStore = cmsSignedData.getCertificates();
-		final Set<CertificateToken> certificates = validationDataForInclusion.certificateTokens;
+		final Set<CertificateToken> certificates = validationDataForInclusion.getCertificateTokens();
 		final Collection<X509CertificateHolder> newCertificateStore = new HashSet<>(certificatesStore.getMatches(null));
 		for (final CertificateToken certificateToken : certificates) {
 			final X509CertificateHolder x509CertificateHolder = DSSASN1Utils.getX509CertificateHolder(certificateToken);
@@ -306,7 +318,7 @@ public class CMSSignedDataBuilder {
 
 		Store<X509CRLHolder> crlsStore = cmsSignedData.getCRLs();
 		final Collection<X509CRLHolder> newCrlsStore = new HashSet<>(crlsStore.getMatches(null));
-		final List<CRLToken> crlTokens = validationDataForInclusion.crlTokens;
+		final List<CRLToken> crlTokens = validationDataForInclusion.getCrlTokens();
 		for (final CRLToken crlToken : crlTokens) {
 			final X509CRLHolder x509CRLHolder = getX509CrlHolder(crlToken);
 			newCrlsStore.add(x509CRLHolder);
@@ -315,7 +327,7 @@ public class CMSSignedDataBuilder {
 
 		Store otherRevocationInfoFormatStoreBasic = cmsSignedData.getOtherRevocationInfo(OCSPObjectIdentifiers.id_pkix_ocsp_basic);
 		final Collection<ASN1Primitive> newOtherRevocationInfoFormatStore = new HashSet<>(otherRevocationInfoFormatStoreBasic.getMatches(null));
-		final List<OCSPToken> ocspTokens = validationDataForInclusion.ocspTokens;
+		final List<OCSPToken> ocspTokens = validationDataForInclusion.getOcspTokens();
 		for (final OCSPToken ocspToken : ocspTokens) {
 			final BasicOCSPResp basicOCSPResp = ocspToken.getBasicOCSPResp();
 			if (basicOCSPResp != null) {

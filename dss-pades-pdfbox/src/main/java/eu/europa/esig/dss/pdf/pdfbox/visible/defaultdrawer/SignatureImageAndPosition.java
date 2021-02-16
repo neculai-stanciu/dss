@@ -20,18 +20,25 @@
  */
 package eu.europa.esig.dss.pdf.pdfbox.visible.defaultdrawer;
 
-public class SignatureImageAndPosition {
+import java.awt.image.BufferedImage;
 
-    private float x;
-    private float y;
-	private byte[] signatureImage;
+import eu.europa.esig.dss.pdf.AnnotationBox;
+import eu.europa.esig.dss.pdf.visible.VisualSignatureFieldAppearance;
 
-    public SignatureImageAndPosition() {
-    }
+public class SignatureImageAndPosition implements VisualSignatureFieldAppearance {
 
-    public SignatureImageAndPosition(float x, float y, byte[] signatureImage) {
+    private final float x;
+    private final float y;
+    private final float width;
+    private final float height;
+
+	private final BufferedImage signatureImage;
+	
+	public SignatureImageAndPosition(final float x, final float y, final float width, final float height, final BufferedImage signatureImage) {
         this.x = x;
         this.y = y;
+        this.width = width;
+        this.height = height;
         this.signatureImage = signatureImage;
     }
 
@@ -39,23 +46,25 @@ public class SignatureImageAndPosition {
         return x;
     }
 
-    public void setX(float x) {
-        this.x = x;
-    }
-
     public float getY() {
         return y;
     }
+    
+	public float getWidth() {
+		return width;
+	}
 
-    public void setY(float y) {
-        this.y = y;
-    }
+	public float getHeight() {
+		return height;
+	}
 
-    public byte[] getSignatureImage() {
+    public BufferedImage getSignatureImage() {
         return signatureImage;
     }
 
-    public void setSignatureImage(byte[] signatureImage) {
-        this.signatureImage = signatureImage;
-    }
+	@Override
+	public AnnotationBox getAnnotationBox() {
+		return new AnnotationBox(x, y, x + width, y + height);
+	}
+    
 }

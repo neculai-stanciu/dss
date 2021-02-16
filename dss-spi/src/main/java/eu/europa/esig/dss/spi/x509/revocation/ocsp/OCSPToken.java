@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- * 
+ *
  * This file is part of the "DSS - Digital Signature Services" project.
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -21,9 +21,10 @@
 package eu.europa.esig.dss.spi.x509.revocation.ocsp;
 
 import java.io.StringWriter;
+import java.security.PublicKey;
 import java.text.ParseException;
 import java.util.Arrays;
-import java.util.Date;
+import java.util.Objects;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -34,8 +35,6 @@ import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.cert.ocsp.BasicOCSPResp;
-import org.bouncycastle.cert.ocsp.CertificateID;
-import org.bouncycastle.cert.ocsp.CertificateStatus;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.SingleResp;
 import org.bouncycastle.cert.ocsp.UnknownStatus;
@@ -44,6 +43,7 @@ import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import eu.europa.esig.dss.enumerations.CertificateStatus;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.RevocationReason;
 import eu.europa.esig.dss.enumerations.RevocationType;
@@ -51,111 +51,89 @@ import eu.europa.esig.dss.enumerations.SignatureAlgorithm;
 import eu.europa.esig.dss.enumerations.SignatureValidity;
 import eu.europa.esig.dss.model.Digest;
 import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.model.x509.revocation.ocsp.OCSP;
 import eu.europa.esig.dss.spi.DSSASN1Utils;
 import eu.europa.esig.dss.spi.DSSRevocationUtils;
 import eu.europa.esig.dss.spi.DSSSecurityProvider;
 import eu.europa.esig.dss.spi.DSSUtils;
+import eu.europa.esig.dss.spi.x509.CandidatesForSigningCertificate;
+import eu.europa.esig.dss.spi.x509.CertificateValidity;
+import eu.europa.esig.dss.spi.x509.SignatureIntegrityValidator;
 import eu.europa.esig.dss.spi.x509.revocation.RevocationToken;
 
 /**
  * OCSP Signed Token which encapsulate BasicOCSPResp (BC).
  */
 @SuppressWarnings("serial")
-public class OCSPToken extends RevocationToken {
+public class OCSPToken extends RevocationToken<OCSP> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OCSPToken.class);
-	
-	private CertificateToken certificateToken;
-	
-	private CertificateToken issuerCertificateToken;
-
-	/**
-	 * Status of the OCSP response
-	 */
-	private OCSPRespStatus responseStatus;
-
-	/**
-	 * The OCSP request contained a nonce
-	 */
-	private boolean useNonce;
-
-	/**
-	 * The sent nonce matched with the received one
-	 */
-	private boolean nonceMatch;
 
 	/**
 	 * The encapsulated basic OCSP response.
 	 */
-	private BasicOCSPResp basicOCSPResp;
+	private final BasicOCSPResp basicOCSPResp;
 
-	public OCSPToken() {
-		this.revocationType = RevocationType.OCSP;
-	}
+	/**
+	 * The used SingleResp (can be null)
+	 */
+	private final SingleResp latestSingleResp;
 
-	@Override
-	public void initInfo() {
-		if (basicOCSPResp != null) {
-			this.productionDate = basicOCSPResp.getProducedAt();
+	/**
+	 * Issuer of the OCSP token
+	 */
+	private CertificateToken issuerCertificateToken;
 
-			AlgorithmIdentifier signatureAlgorithmID = basicOCSPResp.getSignatureAlgorithmID();
-			String oid = signatureAlgorithmID.getAlgorithm().getId();
-			byte[] sigAlgParams = signatureAlgorithmID.getParameters() == null ? null : DSSASN1Utils.getDEREncoded(signatureAlgorithmID.getParameters());
 
-			this.signatureAlgorithm = SignatureAlgorithm.forOidAndParams(oid, sigAlgParams);
+	/**
+	 * The source of embedded into the OCSP token certificates
+	 */
+	private OCSPCertificateSource certificateSource;
 
-			SingleResp bestSingleResp = getBestSingleResp();
-			if (bestSingleResp != null) {
-				this.thisUpdate = bestSingleResp.getThisUpdate();
-				this.nextUpdate = bestSingleResp.getNextUpdate();
-				extractStatusInfo(bestSingleResp);
-				extractArchiveCutOff(bestSingleResp);
-				extractCertHashExtension(bestSingleResp);
-			}
+	/**
+	 * The default constructor to instantiate an OCSPToken with BasicOCSPResp only
+	 *
+	 * @param basicOCSPResp    {@link BasicOCSPResp} containing the response
+	 *                         binaries
+	 * @param latestSingleResp {@link SingleResp} to be used with the current
+	 *                         certificate
+	 * @param certificate      {@link CertificateToken} to which the revocation data
+	 *                         is provided for
+	 * @param issuer           {@link CertificateToken} issued the
+	 *                         {@code certificateToken}
+	 */
+	public OCSPToken(final BasicOCSPResp basicOCSPResp, final SingleResp latestSingleResp, final CertificateToken certificate, CertificateToken issuer) {
+		Objects.requireNonNull(basicOCSPResp, "The OCSP Response must be defined!");
+		Objects.requireNonNull(certificate, "The related certificate token cannot be null!");
+		this.basicOCSPResp = basicOCSPResp;
+		this.productionDate = basicOCSPResp.getProducedAt();
+		this.relatedCertificate = certificate;
+		this.latestSingleResp = latestSingleResp;
+
+		if (latestSingleResp != null) {
+			this.thisUpdate = latestSingleResp.getThisUpdate();
+			this.nextUpdate = latestSingleResp.getNextUpdate();
+			extractStatusInfo(latestSingleResp);
+			extractArchiveCutOff(latestSingleResp);
+			extractCertHashExtension(latestSingleResp);
 		}
-	}
 
-	private SingleResp getBestSingleResp() {
-		Date bestUpdate = null;
-		SingleResp bestSingleResp = null;
-		SingleResp[] responses = getResponses(basicOCSPResp);
-		for (final SingleResp singleResp : responses) {
-			DigestAlgorithm digestAlgorithm = DSSRevocationUtils.getUsedDigestAlgorithm(singleResp);
-			CertificateID certId = DSSRevocationUtils.getOCSPCertificateID(certificateToken, issuerCertificateToken, digestAlgorithm);
-			if (DSSRevocationUtils.matches(certId, singleResp)) {
-				final Date thisUpdate = singleResp.getThisUpdate();
-				if ((bestUpdate == null) || thisUpdate.after(bestUpdate)) {
-					bestSingleResp = singleResp;
-					bestUpdate = thisUpdate;
-				}
-			}
-		}
-		return bestSingleResp;
-	}
-
-	private SingleResp[] getResponses(final BasicOCSPResp basicOCSPResp) {
-		SingleResp[] responses = new SingleResp[] {};
-		try {
-			responses = basicOCSPResp.getResponses();
-		} catch (Exception e) {
-			LOG.error("Unable to parse the responses object from OCSP", e);
-		}
-		return responses;
+		checkSignatureValidity(issuer);
 	}
 
 	private void extractStatusInfo(SingleResp bestSingleResp) {
-		CertificateStatus certStatus = bestSingleResp.getCertStatus();
-		if (CertificateStatus.GOOD == certStatus) {
+		org.bouncycastle.cert.ocsp.CertificateStatus certStatus = bestSingleResp.getCertStatus();
+		if (org.bouncycastle.cert.ocsp.CertificateStatus.GOOD == certStatus) {
 			if (LOG.isInfoEnabled()) {
 				LOG.info("OCSP status is good");
 			}
-			status = true;
+			status = CertificateStatus.GOOD;
 		} else if (certStatus instanceof RevokedStatus) {
 			if (LOG.isInfoEnabled()) {
 				LOG.info("OCSP status revoked");
 			}
 			final RevokedStatus revokedStatus = (RevokedStatus) certStatus;
-			status = false;
+			status = CertificateStatus.REVOKED;
 			revocationDate = revokedStatus.getRevocationTime();
 			int reasonId = 0; // unspecified
 			if (revokedStatus.hasRevocationReason()) {
@@ -166,7 +144,7 @@ public class OCSPToken extends RevocationToken {
 			if (LOG.isInfoEnabled()) {
 				LOG.info("OCSP status unknown");
 			}
-			reason = RevocationReason.UNSPECIFIED;
+			status = CertificateStatus.UNKNOWN;
 		} else {
 			LOG.info("OCSP certificate status: {}", certStatus);
 		}
@@ -186,14 +164,14 @@ public class OCSPToken extends RevocationToken {
 
 	/**
 	 * This method extracts the CertHash extension if present
-	 * 
+	 *
 	 * Common PKI Part 4: Operational Protocols
 	 * 3.1.2 Common PKI Private OCSP Extensions
-	 * 
+	 *
 	 * CertHash ::= SEQUENCE {
 	 * hashAlgorithm AlgorithmIdentifier,
 	 * certificateHash OCTET STRING }
-	 * 
+	 *
 	 * @param bestSingleResp
 	 *            the related SingleResponse
 	 */
@@ -216,16 +194,97 @@ public class OCSPToken extends RevocationToken {
 		}
 	}
 
-	@Override
-	protected SignatureValidity checkIsSignedBy(final CertificateToken candidate) {
-		if (basicOCSPResp == null) {
-			return SignatureValidity.INVALID;
+	private void checkSignatureValidity(CertificateToken caCertificateToken) {
+		CandidatesForSigningCertificate candidates = getCertificateSource().getCandidatesForSigningCertificate(caCertificateToken);
+
+		SignatureIntegrityValidator signingCertificateValidator = new OCSPSignatureIntegrityValidator(this);
+		CertificateValidity certificateValidity = signingCertificateValidator.validate(candidates);
+		if (certificateValidity != null) {
+			candidates.setTheCertificateValidity(certificateValidity);
+
+			CertificateToken certificateToken = certificateValidity.getCertificateToken();
+			this.issuerCertificateToken = certificateToken;
 		}
+	}
+
+	@Override
+	public SignatureAlgorithm getSignatureAlgorithm() {
+		if (signatureAlgorithm == null) {
+			AlgorithmIdentifier signatureAlgorithmID = basicOCSPResp.getSignatureAlgorithmID();
+			String oid = signatureAlgorithmID.getAlgorithm().getId();
+			byte[] sigAlgParams = signatureAlgorithmID.getParameters() == null ? null : DSSASN1Utils.getDEREncoded(signatureAlgorithmID.getParameters());
+
+			signatureAlgorithm = SignatureAlgorithm.forOidAndParams(oid, sigAlgParams);
+		}
+		return signatureAlgorithm;
+	}
+
+	@Override
+	public String getRevocationTokenKey() {
+		if (revocationTokenKey == null) {
+			revocationTokenKey = DSSRevocationUtils.getOcspRevocationKey(relatedCertificate, sourceURL);
+		}
+		return revocationTokenKey;
+	}
+
+	public BasicOCSPResp getBasicOCSPResp() {
+		return basicOCSPResp;
+	}
+
+	public SingleResp getLatestSingleResp() {
+		return latestSingleResp;
+	}
+
+	@Override
+	public OCSPCertificateSource getCertificateSource() {
+		if (certificateSource == null) {
+			certificateSource = new OCSPCertificateSource(getBasicOCSPResp());
+		}
+		return certificateSource;
+	}
+
+	@Override
+	public byte[] getEncoded() {
+		return DSSRevocationUtils.getEncodedFromBasicResp(basicOCSPResp);
+	}
+
+	@Override
+	public X500Principal getIssuerX500Principal() {
+		if (issuerCertificateToken != null) {
+			return issuerCertificateToken.getSubject().getPrincipal();
+		}
+		return null;
+	}
+
+	@Override
+	public CertificateToken getIssuerCertificateToken() {
+		return issuerCertificateToken;
+	}
+
+	/**
+	 * Indicates if the token signature is intact.
+	 * NOTE: The method isSignedBy(token) must be called before!
+	 *
+	 * @return {@code true} or {@code false}
+	 */
+	@Override
+	public boolean isValid() {
+		return SignatureValidity.VALID == signatureValidity;
+	}
+
+	/**
+	 * Verifies if the current OCSP token has been signed by the specified publicKey
+	 * @param publicKey {@link PublicKey} of a signing candidate
+	 *
+	 * @return {@link SignatureValidity}
+	 */
+	@Override
+	protected SignatureValidity checkIsSignedBy(final PublicKey publicKey) {
 		try {
 			signatureInvalidityReason = "";
 			JcaContentVerifierProviderBuilder jcaContentVerifierProviderBuilder = new JcaContentVerifierProviderBuilder();
 			jcaContentVerifierProviderBuilder.setProvider(DSSSecurityProvider.getSecurityProvider());
-			ContentVerifierProvider contentVerifierProvider = jcaContentVerifierProviderBuilder.build(candidate.getPublicKey());
+			ContentVerifierProvider contentVerifierProvider = jcaContentVerifierProviderBuilder.build(publicKey);
 			signatureValidity = SignatureValidity.get(basicOCSPResp.isSignatureValid(contentVerifierProvider));
 		} catch (Exception e) {
 			LOG.error("An error occurred during in attempt to check signature owner : ", e);
@@ -235,54 +294,9 @@ public class OCSPToken extends RevocationToken {
 		return signatureValidity;
 	}
 
-	public OCSPRespStatus getResponseStatus() {
-		return responseStatus;
-	}
-
-	public void setResponseStatus(OCSPRespStatus responseStatus) {
-		this.responseStatus = responseStatus;
-	}
-	
-	public void setCertificateToken(CertificateToken certificateToken) {
-		this.certificateToken = certificateToken;
-	}
-	
-	public void setIssuerCertificateToken(CertificateToken issuerCertificateToken) {
-		this.issuerCertificateToken = issuerCertificateToken;
-	}
-
-	public boolean isUseNonce() {
-		return useNonce;
-	}
-
-	public void setUseNonce(boolean useNonce) {
-		this.useNonce = useNonce;
-	}
-
-	public boolean isNonceMatch() {
-		return nonceMatch;
-	}
-
-	public void setNonceMatch(boolean nonceMatch) {
-		this.nonceMatch = nonceMatch;
-	}
-
-	public BasicOCSPResp getBasicOCSPResp() {
-		return basicOCSPResp;
-	}
-
-	public void setBasicOCSPResp(BasicOCSPResp basicOCSPResp) {
-		this.basicOCSPResp = basicOCSPResp;
-	}
-
-	/**
-	 * Indicates if the token signature is intact.
-	 *
-	 * @return {@code true} or {@code false}
-	 */
 	@Override
-	public boolean isValid() {
-		return SignatureValidity.VALID == signatureValidity;
+	public RevocationType getRevocationType() {
+		return RevocationType.OCSP;
 	}
 
 	@Override
@@ -294,28 +308,22 @@ public class OCSPToken extends RevocationToken {
 	@Override
 	public String toString(String indentStr) {
 		final StringWriter out = new StringWriter();
-		out.append(indentStr).append("OCSPToken[");
-		out.append("ProductionTime: ").append(DSSUtils.formatInternal(productionDate)).append("; ");
-		out.append("ThisUpdate: ").append(DSSUtils.formatInternal(thisUpdate)).append("; ");
-		out.append("NextUpdate: ").append(DSSUtils.formatInternal(nextUpdate)).append('\n');
-		if (getIssuerX500Principal() != null) {
-			out.append("SignedBy: ").append(getIssuerX500Principal().toString()).append('\n');
-		}
+		out.append(indentStr).append("OCSPToken[\n");
 		indentStr += "\t";
+		out.append(indentStr).append("Id: ").append(getDSSIdAsString()).append('\n');
+		out.append(indentStr).append("ProductionTime: ").append(DSSUtils.formatInternal(productionDate)).append("; ");
+		out.append(indentStr).append("ThisUpdate: ").append(DSSUtils.formatInternal(thisUpdate)).append("; ");
+		out.append(indentStr).append("NextUpdate: ").append(DSSUtils.formatInternal(nextUpdate)).append('\n');
+		if (getIssuerX500Principal() != null) {
+			out.append(indentStr).append("SignedBy: ").append(getIssuerX500Principal().toString()).append('\n');
+		}
 		out.append(indentStr).append("Signature algorithm: ").append(signatureAlgorithm == null ? "?" : signatureAlgorithm.getJCEId()).append('\n');
+		if (getRelatedCertificateID() != null) {
+			out.append(indentStr).append("Related certificate: ").append(getRelatedCertificateID()).append('\n');
+		}
 		indentStr = indentStr.substring(1);
 		out.append(indentStr).append("]");
 		return out.toString();
-	}
-
-	@Override
-	public byte[] getEncoded() {
-		return DSSRevocationUtils.getEncodedFromBasicResp(basicOCSPResp);
-	}
-
-	@Override
-	public X500Principal getIssuerX500Principal() {
-		return issuerCertificateToken.getSubjectX500Principal();
 	}
 
 }

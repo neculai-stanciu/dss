@@ -20,10 +20,12 @@
  */
 package eu.europa.esig.dss.crl;
 
+import eu.europa.esig.dss.model.DSSException;
 import org.bouncycastle.asn1.ASN1GeneralizedTime;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1String;
+import org.bouncycastle.asn1.BERTags;
 import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.x509.DistributionPointName;
 import org.bouncycastle.asn1.x509.GeneralName;
@@ -33,10 +35,51 @@ import org.bouncycastle.asn1.x509.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The abstract class containing common code for CRL parsing
+ */
 public abstract class AbstractCRLUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractCRLUtils.class);
 
+	/**
+	 * Builds the {@code CRLBinary} object
+	 *
+	 * @param binaries byte array representing the CRL (DER or PEM encoded)
+	 * @return {@link CRLBinary}
+	 */
+	public CRLBinary buildCRLBinary(byte[] binaries) {
+		return new CRLBinary(getDERContent(binaries));
+	}
+	
+	private byte[] getDERContent(byte[] binaries) {
+		if (binaries != null && binaries.length > 0) {
+			byte first = binaries[0];
+			if (isDerEncoded(first)) {
+				return binaries;
+			} else if (isPemEncoded(first)) {
+				return PemToDerConverter.convert(binaries);
+			} else {
+				throw new DSSException("Unable to load CRL. Not possible to convert to DER!");
+			}
+		}
+		throw new DSSException("Unsupported CRL. The obtained CRL content is empty!");
+	}
+
+	private boolean isDerEncoded(byte first) {
+		return (BERTags.SEQUENCE | BERTags.CONSTRUCTED) == first;
+	}
+
+	private boolean isPemEncoded(byte first) {
+		return '-' == first;
+	}
+
+	/**
+	 * Parses and sets the 'expiredCertsOnCRL' value
+	 *
+	 * @param validity {@link CRLValidity} to set the value to
+	 * @param expiredCertsOnCRLBinaries the 'expiredCertsOnCRL' value
+	 */
 	protected void extractExpiredCertsOnCRL(CRLValidity validity, byte[] expiredCertsOnCRLBinaries) {
 		if (expiredCertsOnCRLBinaries != null) {
 			try {
@@ -48,11 +91,17 @@ public abstract class AbstractCRLUtils {
 					LOG.warn("Attribute 'expiredCertsOnCRL' found but ignored (should be encoded as ASN.1 GeneralizedTime)");
 				}
 			} catch (Exception e) {
-				LOG.error("Unable to parse expiredCertsOnCRL on CRL : " + e.getMessage(), e);
+				LOG.error("Unable to parse expiredCertsOnCRL on CRL : {}", e.getMessage(), e);
 			}
 		}
 	}
-	
+
+	/**
+	 * Parses and sets the issuing distribution point binaries
+	 *
+	 * @param validity {@link CRLValidity} to set the value to
+	 * @param issuingDistributionPointBinary the the issuing distribution point binaries
+	 */
 	protected void extractIssuingDistributionPointBinary(CRLValidity validity, byte[] issuingDistributionPointBinary) {
 		if (issuingDistributionPointBinary != null) {
 			IssuingDistributionPoint issuingDistributionPoint = IssuingDistributionPoint

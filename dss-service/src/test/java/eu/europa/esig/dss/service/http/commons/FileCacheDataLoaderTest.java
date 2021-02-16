@@ -20,6 +20,7 @@
  */
 package eu.europa.esig.dss.service.http.commons;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,8 +31,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,10 +67,8 @@ public class FileCacheDataLoaderTest {
 
 	@Test
 	public void testNotDefineSubDataLoader() {
-		assertThrows(NullPointerException.class, () -> {
-			FileCacheDataLoader fcdl = new FileCacheDataLoader();
-			fcdl.get(URL_TO_LOAD);
-		});
+		FileCacheDataLoader fcdl = new FileCacheDataLoader();
+		assertThrows(NullPointerException.class, () -> fcdl.get(URL_TO_LOAD));
 	}
 
 	@Test
@@ -142,9 +144,8 @@ public class FileCacheDataLoaderTest {
 		offlineFileCacheDataLoader.setDataLoader(new IgnoreDataLoader());
 		offlineFileCacheDataLoader.setFileCacheDirectory(cacheDirectory);
 		
-		DSSException multipleException = assertThrows(DSSException.class, () -> {
-			offlineFileCacheDataLoader.get(Arrays.asList("sample", "null", "empty-array", "0", "1.2.3.4.5"));
-		});
+		List<String> urls = Arrays.asList("sample", "null", "empty-array", "0", "1.2.3.4.5");
+		DSSException multipleException = assertThrows(DSSException.class, () -> offlineFileCacheDataLoader.get(urls));
 		assertTrue(multipleException.getMessage().contains("sample"));
 		assertTrue(multipleException.getMessage().contains("null"));
 		assertTrue(multipleException.getMessage().contains("empty-array"));
@@ -204,7 +205,9 @@ public class FileCacheDataLoaderTest {
 		return cachedFile;
 	}
 
-	private void waitOneSecond() throws InterruptedException {
-		Thread.sleep(1000); // Sleeping is necessary to verify changes in the cache creation time
+	private void waitOneSecond() {
+		Calendar nextSecond = Calendar.getInstance();
+		nextSecond.add(Calendar.SECOND, 1);
+		await().atMost(2, TimeUnit.SECONDS).until(() -> Calendar.getInstance().getTime().compareTo(nextSecond.getTime()) > 0);
 	}
 }

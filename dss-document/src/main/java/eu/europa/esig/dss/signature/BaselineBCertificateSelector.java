@@ -20,15 +20,14 @@
  */
 package eu.europa.esig.dss.signature;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import eu.europa.esig.dss.AbstractSignatureParameters;
 import eu.europa.esig.dss.CertificateReorderer;
 import eu.europa.esig.dss.model.x509.CertificateToken;
-import eu.europa.esig.dss.spi.x509.CertificateSource;
-import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.spi.x509.ListCertificateSource;
 import eu.europa.esig.dss.validation.CertificateVerifier;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * This class is used to retrieve the used certificates for a signature from the user parameters.
@@ -38,45 +37,47 @@ import eu.europa.esig.dss.validation.CertificateVerifier;
  */
 public class BaselineBCertificateSelector extends CertificateReorderer {
 
+	/** The CertificateVerifier to use */
 	private final CertificateVerifier certificateVerifier;
+
+	/** The SignatureParameters */
 	private final AbstractSignatureParameters parameters;
 
+	/**
+	 * The default constructor
+	 *
+	 * @param certificateVerifier {@link CertificateVerifier}
+	 * @param parameters {@link AbstractSignatureParameters}
+	 */
 	public BaselineBCertificateSelector(CertificateVerifier certificateVerifier, AbstractSignatureParameters parameters) {
 		super(parameters.getSigningCertificate(), parameters.getCertificateChain());
 		this.certificateVerifier = certificateVerifier;
 		this.parameters = parameters;
 	}
 
+	/**
+	 * Returns a certificate chain for a B-level signature creation
+	 *
+	 * @return an ordered list of {@link CertificateToken}s
+	 */
 	public List<CertificateToken> getCertificates() {
-
 		List<CertificateToken> orderedCertificates = getOrderedCertificates();
-		
-		List<CertificateSource> trustedCertSources = certificateVerifier.getTrustedCertSources();
 
+		ListCertificateSource trustedCertSources = certificateVerifier.getTrustedCertSources();
 		// if true, trust anchor certificates (and upper certificates) are not included in the signature
-		if (parameters.bLevel().isTrustAnchorBPPolicy() && Utils.isCollectionNotEmpty(trustedCertSources)) {
-
+		if (parameters.bLevel().isTrustAnchorBPPolicy() && !trustedCertSources.isEmpty()) {
 			List<CertificateToken> result = new LinkedList<>();
 			for (CertificateToken certificateToken : orderedCertificates) {
-				if (isTrusted(trustedCertSources, certificateToken)) {
+				if (trustedCertSources.isTrusted(certificateToken)) {
 					break;
 				}
 				result.add(certificateToken);
 			}
-
 			return result;
+
 		} else {
 			return orderedCertificates;
 		}
-	}
-
-	private boolean isTrusted(List<CertificateSource> trustedCertSources, CertificateToken certificateToken) {
-		for (CertificateSource source : trustedCertSources) {
-			if (source.isTrusted(certificateToken)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 }

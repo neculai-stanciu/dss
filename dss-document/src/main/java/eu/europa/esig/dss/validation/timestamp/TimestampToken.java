@@ -20,22 +20,35 @@
  */
 package eu.europa.esig.dss.validation.timestamp;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-
-import javax.security.auth.x500.X500Principal;
-
+import eu.europa.esig.dss.enumerations.ArchiveTimestampType;
+import eu.europa.esig.dss.enumerations.DigestAlgorithm;
+import eu.europa.esig.dss.enumerations.EncryptionAlgorithm;
+import eu.europa.esig.dss.enumerations.SignatureAlgorithm;
+import eu.europa.esig.dss.enumerations.SignatureValidity;
+import eu.europa.esig.dss.enumerations.TimestampType;
+import eu.europa.esig.dss.model.DSSDocument;
+import eu.europa.esig.dss.model.DSSException;
+import eu.europa.esig.dss.model.Digest;
+import eu.europa.esig.dss.model.identifier.TokenIdentifier;
+import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.model.x509.Token;
+import eu.europa.esig.dss.spi.DSSASN1Utils;
+import eu.europa.esig.dss.spi.DSSSecurityProvider;
+import eu.europa.esig.dss.spi.DSSUtils;
+import eu.europa.esig.dss.spi.x509.CandidatesForSigningCertificate;
+import eu.europa.esig.dss.spi.x509.CertificateIdentifier;
+import eu.europa.esig.dss.spi.x509.CertificateRef;
+import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.validation.CMSCertificateSource;
+import eu.europa.esig.dss.validation.ManifestFile;
+import eu.europa.esig.dss.validation.SignatureAttribute;
+import eu.europa.esig.dss.validation.scope.SignatureScope;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.cms.AttributeTable;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cms.CMSException;
 import org.bouncycastle.cms.CMSSignedData;
-import org.bouncycastle.cms.SignerId;
 import org.bouncycastle.cms.SignerInformation;
 import org.bouncycastle.cms.SignerInformationStore;
 import org.bouncycastle.cms.SignerInformationVerifier;
@@ -46,27 +59,15 @@ import org.bouncycastle.tsp.TimeStampToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import eu.europa.esig.dss.enumerations.ArchiveTimestampType;
-import eu.europa.esig.dss.enumerations.DigestAlgorithm;
-import eu.europa.esig.dss.enumerations.EncryptionAlgorithm;
-import eu.europa.esig.dss.enumerations.SignatureAlgorithm;
-import eu.europa.esig.dss.enumerations.SignatureValidity;
-import eu.europa.esig.dss.enumerations.TimestampLocation;
-import eu.europa.esig.dss.enumerations.TimestampType;
-import eu.europa.esig.dss.model.DSSDocument;
-import eu.europa.esig.dss.model.DSSException;
-import eu.europa.esig.dss.model.Digest;
-import eu.europa.esig.dss.model.x509.CertificateToken;
-import eu.europa.esig.dss.model.x509.Token;
-import eu.europa.esig.dss.spi.DSSASN1Utils;
-import eu.europa.esig.dss.spi.DSSSecurityProvider;
-import eu.europa.esig.dss.spi.DSSUtils;
-import eu.europa.esig.dss.spi.x509.CertificatePool;
-import eu.europa.esig.dss.utils.Utils;
-import eu.europa.esig.dss.validation.CertificateRef;
-import eu.europa.esig.dss.validation.ManifestFile;
-import eu.europa.esig.dss.validation.PdfRevision;
-import eu.europa.esig.dss.validation.scope.SignatureScope;
+import javax.security.auth.x500.X500Principal;
+import java.io.IOException;
+import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
 
 /**
  * SignedToken containing a TimeStamp.
@@ -107,10 +108,8 @@ public class TimestampToken extends Token {
 	 */
 	private List<SignatureScope> timestampScopes;
 
-	/* In case of ASiC-E CAdES */
+	/* In case of ASiC-E */
 	private ManifestFile manifestFile;
-	
-	private TimestampLocation timestampLocation;
 
 	/**
 	 * In case of XAdES IndividualDataObjectsTimeStamp, Includes shall be specified
@@ -129,38 +128,56 @@ public class TimestampToken extends Token {
 	private String canonicalizationMethod;
 
 	private X500Principal tsaX500Principal;
-	
-	private PdfRevision pdfRevision;
 
 	/**
-	 * This attribute is used only with XAdES timestamps. It represents the hash code of the DOM element containing the
-	 * timestamp. It's an internal attribute which allows to
-	 * unambiguously identify a timestamp.
+	 * It's an internal attribute which allows to unambiguously identify a timestamp.
+	 * The value is used for a message-imprint computation.
 	 */
-	private int hashCode;
-	
+	private SignatureAttribute attribute;
+
+	/**
+	 * Cached list of signing certificate candidates
+	 */
+	private CandidatesForSigningCertificate candidatesForSigningCertificate;
+
+	/**
+	 * Default constructor
+	 *
+	 * @param binaries byte array
+	 * @param type {@link TimestampType}
+	 * @throws TSPException if timestamp creation exception occurs
+	 * @throws IOException if IOException occurs
+	 * @throws CMSException if CMS data building exception occurs
+	 */
 	public TimestampToken(final byte[] binaries, final TimestampType type) throws TSPException, IOException, CMSException {
-		this(binaries, type, new CertificatePool());
+		this(binaries, type, new ArrayList<>());
 	}
 
-	public TimestampToken(final byte[] binaries, final TimestampType type, final CertificatePool certPool) throws TSPException, IOException, CMSException {
-		this(binaries, type, certPool, new ArrayList<TimestampedReference>(), null);
+	/**
+	 * Default constructor with timestamped references
+	 *
+	 * @param binaries byte array
+	 * @param type {@link TimestampType}
+	 * @param timestampedReferences a list of {@link TimestampedReference}s
+	 * @throws TSPException if timestamp creation exception occurs
+	 * @throws IOException if IOException occurs
+	 * @throws CMSException if CMS data building exception occurs
+	 */
+	public TimestampToken(final byte[] binaries, final TimestampType type, final List<TimestampedReference> timestampedReferences) throws TSPException, IOException, CMSException {
+		this(new CMSSignedData(binaries), type, timestampedReferences);
 	}
 
-	public TimestampToken(final PdfRevision pdfTimestampRevision, final TimestampType type, final CertificatePool certPool,
-			final TimestampLocation timestampLocation) throws TSPException, IOException, CMSException {
-		this(pdfTimestampRevision.getCMSSignedData(), type, certPool, new ArrayList<TimestampedReference>(), timestampLocation);
-		this.pdfRevision = pdfTimestampRevision;
-	}
-
-	public TimestampToken(final byte[] binaries, final TimestampType type, final CertificatePool certPool,
-			final List<TimestampedReference> timestampedReferences, final TimestampLocation timestampLocation) throws TSPException, IOException, CMSException {
-		this(new CMSSignedData(binaries), type, certPool, timestampedReferences, timestampLocation);
-	}
-
-	public TimestampToken(final CMSSignedData cms, final TimestampType type, final CertificatePool certPool,
-			final List<TimestampedReference> timestampedReferences, final TimestampLocation timestampLocation) throws TSPException, IOException {
-		this(new TimeStampToken(cms), type, timestampedReferences, timestampLocation, certPool);
+	/**
+	 * Default constructor with timestamped references
+	 *
+	 * @param cms {@link CMSSignedData}
+	 * @param type {@link TimestampType}
+	 * @param timestampedReferences a list of {@link TimestampedReference}s
+	 * @throws TSPException if timestamp creation exception occurs
+	 * @throws IOException if IOException occurs
+	 */
+	public TimestampToken(final CMSSignedData cms, final TimestampType type, final List<TimestampedReference> timestampedReferences) throws TSPException, IOException {
+		this(new TimeStampToken(cms), type, timestampedReferences);
 	}
 
 	/**
@@ -173,25 +190,15 @@ public class TimestampToken extends Token {
 	 *                              {@code TimestampType}
 	 * @param timestampedReferences
 	 *                              timestamped references
-	 * @param timestampLocation
-	 *                              {@code TimestampLocation} defines where the
 	 *                              timestamp comes from
-	 * @param certPool
-	 *                              {@code CertificatePool} which is used to
-	 *                              identify the signing certificate of the
-	 *                              timestamp
 	 */
-	public TimestampToken(final TimeStampToken timeStamp, final TimestampType type, final List<TimestampedReference> timestampedReferences,
-			final TimestampLocation timestampLocation, final CertificatePool certPool) {
+	public TimestampToken(final TimeStampToken timeStamp, final TimestampType type, final List<TimestampedReference> timestampedReferences) {
 		this.timeStamp = timeStamp;
 		this.timeStampType = type;
-		this.certificateSource = new TimestampCertificateSource(timeStamp, certPool);
+		this.certificateSource = new TimestampCertificateSource(timeStamp);
 		this.ocspSource = new TimestampOCSPSource(timeStamp);
 		this.crlSource = new TimestampCRLSource(timeStamp);
 		this.timestampedReferences = timestampedReferences;
-		if (timestampLocation != null) {
-			this.timestampLocation = timestampLocation;
-		}
 	}
 
 	@Override
@@ -202,6 +209,15 @@ public class TimestampToken extends Token {
 	@Override
 	public String getAbbreviation() {
 		return timeStampType.name() + ": " + getDSSIdAsString() + ": " + DSSUtils.formatInternal(timeStamp.getTimeStampInfo().getGenTime());
+	}
+	
+	/**
+	 * Returns {@code TimestampCertificateSource} for the timestamp
+	 * 
+	 * @return {@link TimestampCertificateSource}
+	 */
+	public TimestampCertificateSource getCertificateSource() {
+		return certificateSource;
 	}
 	
 	/**
@@ -235,8 +251,38 @@ public class TimestampToken extends Token {
 	public boolean isSignatureValid() {
 		return SignatureValidity.VALID == signatureValidity;
 	}
+
+	/**
+	 * Checks if the OCSP token is signed by the given publicKey
+	 * 
+	 * @param certificateToken
+	 *              the candidate to be tested
+	 * @return true if this token is signed by the given public key
+	 */
+	@Override
+	public boolean isSignedBy(final CertificateToken certificateToken) {
+		if (publicKeyOfTheSigner != null) {
+			return publicKeyOfTheSigner.equals(certificateToken.getPublicKey());
+		} else if (SignatureValidity.VALID == checkIsSignedBy(certificateToken)) {
+			if (!isSelfSigned()) {
+				this.publicKeyOfTheSigner = certificateToken.getPublicKey();
+			}
+			return true;
+		}
+		return false;
+	}
 	
 	@Override
+	public boolean isSignedBy(final PublicKey publicKey) {
+		throw new UnsupportedOperationException("Use method isSignedBy(certificateToken) for a TimestampToken validation!");
+	}
+
+	/**
+	 * Checks if timestamp is signed by teh given certificate
+	 *
+	 * @param candidate {@link CertificateToken}
+	 * @return {@link SignatureValidity}
+	 */
 	protected SignatureValidity checkIsSignedBy(final CertificateToken candidate) {
 
 		final X509CertificateHolder x509CertificateHolder = DSSASN1Utils.getX509CertificateHolder(candidate);
@@ -247,7 +293,7 @@ public class TimestampToken extends Token {
 			// timestamp as a CMSSignedData
 			if (isValidTimestamp(signerInformationVerifier) || isValidCMSSignedData(signerInformationVerifier)) {
 				signatureValidity = SignatureValidity.VALID;
-				this.tsaX500Principal = candidate.getSubjectX500Principal();
+				this.tsaX500Principal = candidate.getSubject().getPrincipal();
 				SignerInformation signerInformation = timeStamp.toCMSSignedData().getSignerInfos().get(timeStamp.getSID());
 
 				if (SignatureAlgorithm.RSA_SSA_PSS_SHA1_MGF1.getOid().equals(signerInformation.getEncryptionAlgOID())) {
@@ -309,6 +355,11 @@ public class TimestampToken extends Token {
 		} catch (OperatorException e) {
 			throw new DSSException("Unable to build an instance of SignerInformationVerifier", e);
 		}
+	}
+	
+	@Override
+	protected SignatureValidity checkIsSignedBy(final PublicKey publicKey) {
+		throw new UnsupportedOperationException("Use method checkIsSignedBy(certificateToken) for a TimestampToken validation!");
 	}
 
 	/**
@@ -394,17 +445,13 @@ public class TimestampToken extends Token {
 		return messageImprintIntact;
 	}
 
+	/**
+	 * Checks if the timestamp's signature has been validated
+	 *
+	 * @return TRUE if the timestamp's signature has been validated, FALSE otherwise
+	 */
 	public boolean isProcessed() {
 		return processed;
-	}
-	
-	/**
-	 * Returns the current PDF timestamp revision
-	 * 
-	 * @return {@link PdfRevision}
-	 */
-	public PdfRevision getPdfRevision() {
-		return pdfRevision;
 	}
 
 	/**
@@ -414,15 +461,6 @@ public class TimestampToken extends Token {
 	 */
 	public TimestampType getTimeStampType() {
 		return timeStampType;
-	}
-
-	/**
-	 * Retrieves the location of timestamp token.
-	 *
-	 * @return {@code TimestampLocation}
-	 */
-	public TimestampLocation getTimestampLocation() {
-		return timestampLocation;
 	}
 
 	/**
@@ -564,12 +602,17 @@ public class TimestampToken extends Token {
 	/**
 	 * Returns the covered references by the current timestamp (XAdES IndividualDataObjectsTimeStamp)
 	 * 
-	 * @return
+	 * @return a list of timestamp's includes
 	 */
 	public List<TimestampInclude> getTimestampIncludes() {
 		return timestampIncludes;
 	}
 
+	/**
+	 * Sets the covered references by the current timestamp (XAdES IndividualDataObjectsTimeStamp)
+	 *
+	 * @param timestampIncludes a list of timestamp's includes
+	 */
 	public void setTimestampIncludes(List<TimestampInclude> timestampIncludes) {
 		this.timestampIncludes = timestampIncludes;
 	}
@@ -583,6 +626,11 @@ public class TimestampToken extends Token {
 		return timestampScopes;
 	}
 
+	/**
+	 * Sets timestamp's signature scopes
+	 *
+	 * @param timestampScopes a list of {@link SignatureScope}s
+	 */
 	public void setTimestampScopes(List<SignatureScope> timestampScopes) {
 		this.timestampScopes = timestampScopes;
 	}
@@ -597,39 +645,48 @@ public class TimestampToken extends Token {
 	}
 	
 	/**
-	 * Returns the list of contained certificate references.
+	 * Returns the Set of contained certificate references.
 	 *
-	 * @return {@code List} of {@code CertificateRef}
+	 * @return {@code Set} of {@code CertificateRef}
 	 */
-	public List<CertificateRef> getCertificateRefs() {
+	public Set<CertificateRef> getCertificateRefs() {
 		return certificateSource.getAllCertificateRefs();
 	}
 
+	/**
+	 * Gets unsigned attribute table
+	 *
+	 * @return {@link AttributeTable}
+	 */
 	public AttributeTable getUnsignedAttributes() {
 		return timeStamp.getUnsignedAttributes();
 	}
 
+	/**
+	 * Gets BouncyCastle implementation of a TimestampToken
+	 *
+	 * @return {@link TimeStampToken}
+	 */
 	public TimeStampToken getTimeStamp() {
 		return timeStamp;
 	}
 	
 	/**
-	 * Used only with XAdES timestamps.
+	 * Gets the timestamp's element attribute (XAdES, JAdES)
 	 *
-	 * @param hashCode
-	 *            the hash code of the DOM element containing the timestamp
+	 * @return {@link SignatureAttribute}
 	 */
-	public void setHashCode(final int hashCode) {
-		this.hashCode = hashCode;
+	public SignatureAttribute getTimestampAttribute() {
+		return attribute;
 	}
 
 	/**
-	 * Used only with XAdES timestamps.
+	 * Sets the timestamp's element attribute (XAdES, JAdES)
 	 *
-	 * @return the hash code of the DOM element containing the timestamp
+	 * @param attribute {@link SignatureAttribute}
 	 */
-	public int getHashCode() {
-		return hashCode;
+	public void setTimestampAttribute(SignatureAttribute attribute) {
+		this.attribute = attribute;
 	}
 
 	@Override
@@ -667,9 +724,27 @@ public class TimestampToken extends Token {
 			return getClass().getName();
 		}
 	}
+	
+	/**
+	 * Returns a list of found CertificateIdentifier in the SignerInformationStore
+	 * 
+	 * @return a list of {@link CertificateIdentifier}s
+	 */
+	public Set<CertificateIdentifier> getSignerInformationStoreInfos() {
+		return getCertificateSource().getAllCertificateIdentifiers();
+	}
 
-	public SignerId getSignerId() {
-		return timeStamp.getSID();
+	/**
+	 * Returns an object with signing candidates
+	 * 
+	 * @return {@link CandidatesForSigningCertificate}
+	 */
+	public CandidatesForSigningCertificate getCandidatesForSigningCertificate() {
+		if (candidatesForSigningCertificate == null) {
+			candidatesForSigningCertificate = ((CMSCertificateSource) getCertificateSource())
+					.getCandidatesForSigningCertificate(null);
+		}
+		return candidatesForSigningCertificate;
 	}
 
 	/**
@@ -683,8 +758,8 @@ public class TimestampToken extends Token {
 	}
 
 	@Override
-	public String getDSSIdAsString() {
-		return "T-" + super.getDSSIdAsString();
+	protected TokenIdentifier buildTokenIdentifier() {
+		return new TimestampTokenIdentifier(this);
 	}
 
 }

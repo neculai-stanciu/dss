@@ -20,10 +20,13 @@
  */
 package eu.europa.esig.dss.cookbook.example.sign;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 
 import eu.europa.esig.dss.cookbook.example.CookbookTools;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
+import eu.europa.esig.dss.enumerations.ObjectIdentifierQualifier;
 import eu.europa.esig.dss.enumerations.SignatureLevel;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.Policy;
@@ -87,6 +90,10 @@ public class SignPdfPadesBTest extends CookbookTools {
 			DigestAlgorithm digestAlgorithm = parameters.getDigestAlgorithm();
 			SignatureValue signatureValue = signingToken.sign(dataToSign, digestAlgorithm, privateKey);
 
+			// Optionally or for debug purpose :
+			// Validate the signature value against the original dataToSign
+			assertTrue(service.isValidSignatureValue(dataToSign, signatureValue, privateKey.getCertificate()));
+
 			// We invoke the xadesService to sign the document with the signature value obtained in
 			// the previous step.
 			DSSDocument signedDocument = service.signDocument(toSignDocument, parameters, signatureValue);
@@ -98,6 +105,8 @@ public class SignPdfPadesBTest extends CookbookTools {
 			Policy signaturePolicy = new Policy();
 			// The string representation of the OID of the signature policy to use when signing.
 			signaturePolicy.setId("1.2.3.4.5.6");
+			// Defines a policy identifier qualifier
+			signaturePolicy.setQualifier(ObjectIdentifierQualifier.OID_AS_URN);
 			// Defines a description for a signature policy
 			signaturePolicy.setDescription("Perfect Signature Policy");
 			// The hash function used to compute the value of the SignaturePolicyHashValue entry. 
@@ -108,8 +117,6 @@ public class SignPdfPadesBTest extends CookbookTools {
 			signaturePolicy.setDigestValue(new byte[] { 'd', 'i', 'g', 'e', 's', 't', 'v', 'a', 'l', 'u', 'e' });
 			// Defines a URI where the policy can be accessed from
 			signaturePolicy.setSpuri("http://spuri.test");
-			// Defines a policy qualifier
-			signaturePolicy.setQualifier("OIDAsURN");
 			parameters.bLevel().setSignaturePolicy(signaturePolicy);
 			// end::policy[]
 

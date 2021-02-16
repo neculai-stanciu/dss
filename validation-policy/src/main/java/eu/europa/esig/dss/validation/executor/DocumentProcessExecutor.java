@@ -22,6 +22,9 @@ package eu.europa.esig.dss.validation.executor;
 
 import eu.europa.esig.dss.validation.reports.Reports;
 
+/**
+ * Processes a document validation
+ */
 public interface DocumentProcessExecutor extends ProcessExecutor<Reports> {
 
 	/**
@@ -36,8 +39,19 @@ public interface DocumentProcessExecutor extends ProcessExecutor<Reports> {
 	/**
 	 * Specifies if the ETSI Validation Report must be created
 	 * 
-	 * @param enableEtsiValidationReport
+	 * @param enableEtsiValidationReport enable the ETSI Validation Report
+	 *                                   generation
 	 */
 	void setEnableEtsiValidationReport(boolean enableEtsiValidationReport);
+
+	/**
+	 * This method allows to enable/disable the semantics inclusion in the reports
+	 * (Indication / SubIndication meanings)
+	 * 
+	 * Disabled by default
+	 * 
+	 * @param includeSemantics true to enable the inclusion of the semantics
+	 */
+	void setIncludeSemantics(boolean includeSemantics);
 
 }

@@ -33,11 +33,12 @@ import eu.europa.esig.dss.diagnostic.DiagnosticData;
 import eu.europa.esig.dss.diagnostic.SignatureWrapper;
 import eu.europa.esig.dss.diagnostic.TimestampWrapper;
 import eu.europa.esig.dss.enumerations.Indication;
+import eu.europa.esig.dss.jades.signature.JAdESService;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.pdf.pdfbox.PdfBoxDefaultObjectFactory;
 import eu.europa.esig.dss.simplereport.SimpleReport;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.reports.Reports;
@@ -62,6 +63,12 @@ public abstract class AbstractRemoteSignatureServiceTest extends PKIFactoryAcces
 		padesService.setTspSource(getGoodTsa());
 		padesService.setPdfObjFactory(new PdfBoxDefaultObjectFactory());
 		return padesService;
+	}
+	
+	protected JAdESService getJAdESService() {
+		JAdESService jadesService = new JAdESService(getCompleteCertificateVerifier());
+		jadesService.setTspSource(getGoodTsa());
+		return jadesService;
 	}
 	
 	protected ASiCWithXAdESService getASiCXAdESService() {

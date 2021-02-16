@@ -43,7 +43,7 @@ import eu.europa.esig.dss.model.SignatureValue;
 import eu.europa.esig.dss.model.ToBeSigned;
 import eu.europa.esig.dss.signature.DocumentSignatureService;
 import eu.europa.esig.dss.spi.DSSUtils;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.validation.CommonCertificateVerifier;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.reports.Reports;
@@ -76,7 +76,7 @@ public class CAdESLevelBWithZeroPolicyTest extends PKIFactoryAccess {
 		signatureParameters.setSignaturePackaging(SignaturePackaging.ENVELOPING);
 		signatureParameters.setSignatureLevel(SignatureLevel.CAdES_BASELINE_B);
 
-		service = new CAdESService(getCompleteCertificateVerifier());
+		service = new CAdESService(getOfflineCertificateVerifier());
 	}
 	
 	@Test
@@ -137,6 +137,7 @@ public class CAdESLevelBWithZeroPolicyTest extends PKIFactoryAccess {
 		ToBeSigned dataToSign = service.getDataToSign(documentToSign, signatureParameters);
 		SignatureValue signatureValue = getToken().sign(dataToSign, signatureParameters.getDigestAlgorithm(),
 				signatureParameters.getMaskGenerationFunction(), getPrivateKeyEntry());
+		assertTrue(service.isValidSignatureValue(dataToSign, signatureValue, getSigningCert()));
 		signedDocument = service.signDocument(documentToSign, signatureParameters, signatureValue);
 	}
 	
@@ -153,7 +154,7 @@ public class CAdESLevelBWithZeroPolicyTest extends PKIFactoryAccess {
 		CertificateWrapper signingCertificate = signature.getSigningCertificate();
 		assertNotNull(signingCertificate);
 		assertTrue(signature.isPolicyPresent());
-		assertTrue(signature.isZeroHashPolicy());
+		assertTrue(signature.isPolicyZeroHash());
 	}
 	
 	public void testSignatureFalseZeroPolicy() {
@@ -169,7 +170,7 @@ public class CAdESLevelBWithZeroPolicyTest extends PKIFactoryAccess {
 		CertificateWrapper signingCertificate = signature.getSigningCertificate();
 		assertNotNull(signingCertificate);
 		assertTrue(signature.isPolicyPresent());
-		assertFalse(signature.isZeroHashPolicy());
+		assertFalse(signature.isPolicyZeroHash());
 	}
 
 	@Override

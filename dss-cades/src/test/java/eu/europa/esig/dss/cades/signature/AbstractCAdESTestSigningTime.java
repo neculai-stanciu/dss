@@ -20,7 +20,7 @@
  */
 package eu.europa.esig.dss.cades.signature;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Date;
 
@@ -33,6 +33,7 @@ import eu.europa.esig.dss.enumerations.SignatureLevel;
 import eu.europa.esig.dss.enumerations.SignaturePackaging;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.InMemoryDocument;
+import eu.europa.esig.dss.model.SerializableSignatureParameters;
 import eu.europa.esig.dss.signature.DocumentSignatureService;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 
@@ -57,7 +58,7 @@ public abstract class AbstractCAdESTestSigningTime extends AbstractCAdESTestSign
 		signingTime = getSigningTime();
 		signatureParameters.bLevel().setSigningDate(signingTime);
 
-		service = new MockCAdESService(getCompleteCertificateVerifier());
+		service = new MockCAdESService(getOfflineCertificateVerifier());
 	}
 	
 	protected abstract Date getSigningTime();
@@ -66,7 +67,7 @@ public abstract class AbstractCAdESTestSigningTime extends AbstractCAdESTestSign
 	protected void checkSigningDate(DiagnosticData diagnosticData) {
 		super.checkSigningDate(diagnosticData);
 		SignatureWrapper signature = diagnosticData.getSignatureById(diagnosticData.getFirstSignatureId());
-		assertTrue(signingTime.equals(signature.getClaimedSigningTime()));
+		assertEquals(signingTime, signature.getClaimedSigningTime());
 	}
 
 	@Override
@@ -102,7 +103,7 @@ public abstract class AbstractCAdESTestSigningTime extends AbstractCAdESTestSign
 		}
 		
 		@Override
-		protected void assertSigningDateInCertificateValidityRange(final CAdESSignatureParameters parameters) {
+		protected void assertSigningDateInCertificateValidityRange(final SerializableSignatureParameters parameters) {
 			// do nothing
 		}
 		

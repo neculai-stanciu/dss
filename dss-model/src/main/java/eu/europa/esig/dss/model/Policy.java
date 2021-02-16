@@ -20,30 +20,44 @@
  */
 package eu.europa.esig.dss.model;
 
+import eu.europa.esig.dss.enumerations.DigestAlgorithm;
+import eu.europa.esig.dss.enumerations.ObjectIdentifierQualifier;
+
 import java.io.Serializable;
 import java.util.Arrays;
-
-import eu.europa.esig.dss.enumerations.DigestAlgorithm;
+import java.util.Objects;
 
 /**
  * This class allows to define the signature policy.
  */
-@SuppressWarnings("serial")
 public class Policy implements Serializable {
 
+	private static final long serialVersionUID = 2792220193195511748L;
+
+	/** The Id of the SignaturePolicy */
 	private String id;
 
-	/* Qualifier attribute for XAdES Identifier */
-	private String qualifier;
+	/** Qualifier attribute for XAdES Identifier */
+	private ObjectIdentifierQualifier qualifier;
 
+	/** The SignaturePolicy description */
 	private String description;
+	
+	/** The array of documentation references (used in XAdES) */
+	private String[] documentationReferences;
 
+	/** The digest algorithm used to conpute the digest */
 	private DigestAlgorithm digestAlgorithm;
 
+	/** The computed digest value */
 	private byte[] digestValue;
 
+	/** The SignaturePolicy URI */
 	private String spuri;
 
+	/**
+	 * Empty constructor
+	 */
 	public Policy() {
 	}
 
@@ -71,7 +85,7 @@ public class Policy implements Serializable {
 	 *
 	 * @return the qualifier
 	 */
-	public String getQualifier() {
+	public ObjectIdentifierQualifier getQualifier() {
 		return qualifier;
 	}
 
@@ -81,7 +95,7 @@ public class Policy implements Serializable {
 	 * @param qualifier
 	 *            the qualifier
 	 */
-	public void setQualifier(String qualifier) {
+	public void setQualifier(ObjectIdentifierQualifier qualifier) {
 		this.qualifier = qualifier;
 	}
 
@@ -102,6 +116,25 @@ public class Policy implements Serializable {
 	 */
 	public void setDescription(String description) {
 		this.description = description;
+	}
+
+	/**
+	 * Get the signature policy documentation references
+	 *
+	 * @return the signature policy documentation references
+	 */
+	public String[] getDocumentationReferences() {
+		return documentationReferences;
+	}
+
+	/**
+	 * Set a list of signature documentation references
+	 * 
+	 * @param documentationReferences
+	 *            an array of {@link String} documentation references
+	 */
+	public void setDocumentationReferences(String... documentationReferences) {
+		this.documentationReferences = documentationReferences;
 	}
 
 	/**
@@ -160,12 +193,43 @@ public class Policy implements Serializable {
 	public void setSpuri(String spuri) {
 		this.spuri = spuri;
 	}
+	
+	/**
+	 * Checks if the object's data is not filled
+	 * 
+	 * @return TRUE if the Policy object does not have filled data, FALSE otherwise
+	 */
+	public boolean isEmpty() {
+		if (id != null && !id.isEmpty()) {
+			return false;
+		}
+		if (qualifier != null) {
+			return false;
+		}
+		if (description != null && !description.isEmpty()) {
+			return false;
+		}
+		if (documentationReferences != null && documentationReferences.length != 0) {
+			return false;
+		}
+		if (digestAlgorithm != null) {
+			return false;
+		}
+		if (digestValue != null && digestValue.length != 0) {
+			return false;
+		}
+		if (spuri != null && !spuri.isEmpty()) {
+			return false;
+		}
+		return true;
+	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
 		result = (prime * result) + ((description == null) ? 0 : description.hashCode());
+		result = (prime * result) + ((documentationReferences == null) ? 0 : Arrays.hashCode(documentationReferences));
 		result = (prime * result) + ((digestAlgorithm == null) ? 0 : digestAlgorithm.hashCode());
 		result = (prime * result) + Arrays.hashCode(digestValue);
 		result = (prime * result) + ((id == null) ? 0 : id.hashCode());
@@ -185,11 +249,14 @@ public class Policy implements Serializable {
 			return false;
 		}
 		Policy other = (Policy) obj;
-		if (description == null) {
-			if (other.description != null) {
+		if (!Objects.equals(description, other.description)) {
+			return false;
+		}
+		if (documentationReferences == null) {
+			if (other.documentationReferences != null) {
 				return false;
 			}
-		} else if (!description.equals(other.description)) {
+		} else if (!Arrays.equals(documentationReferences, other.documentationReferences)) {
 			return false;
 		}
 		if (digestAlgorithm != other.digestAlgorithm) {
@@ -198,18 +265,10 @@ public class Policy implements Serializable {
 		if (!Arrays.equals(digestValue, other.digestValue)) {
 			return false;
 		}
-		if (id == null) {
-			if (other.id != null) {
-				return false;
-			}
-		} else if (!id.equals(other.id)) {
+		if (!Objects.equals(id, other.id)) {
 			return false;
 		}
-		if (spuri == null) {
-			if (other.spuri != null) {
-				return false;
-			}
-		} else if (!spuri.equals(other.spuri)) {
+		if (!Objects.equals(spuri, other.spuri)) {
 			return false;
 		}
 		return true;
@@ -218,7 +277,7 @@ public class Policy implements Serializable {
 	@Override
 	public String toString() {
 		return "Policy [id=" + id + ", description=" + description + ", digestAlgorithm=" + digestAlgorithm + ", digestValue=" + Arrays.toString(digestValue)
-				+ ", spuri=" + spuri + "]";
+				+ ", spuri=" + spuri + ", documentationReferences=" + Arrays.toString(documentationReferences) + "]";
 	}
 
 }

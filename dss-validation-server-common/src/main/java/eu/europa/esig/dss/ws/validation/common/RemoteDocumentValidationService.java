@@ -20,12 +20,6 @@
  */
 package eu.europa.esig.dss.ws.validation.common;
 
-import java.io.ByteArrayInputStream;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.policy.ValidationPolicy;
@@ -37,23 +31,45 @@ import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import eu.europa.esig.dss.validation.reports.Reports;
 import eu.europa.esig.dss.ws.converter.RemoteDocumentConverter;
 import eu.europa.esig.dss.ws.dto.RemoteDocument;
+import eu.europa.esig.dss.ws.validation.dto.DataToValidateDTO;
 import eu.europa.esig.dss.ws.validation.dto.WSReportsDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.util.List;
+
+/**
+ * The remote validation service
+ */
 public class RemoteDocumentValidationService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteDocumentValidationService.class);
 
+	/** The certificate verifier to use */
 	private CertificateVerifier verifier;
 
+	/**
+	 * Sets the certificate verifier
+	 *
+	 * @param verifier {@link CertificateVerifier}
+	 */
 	public void setVerifier(CertificateVerifier verifier) {
 		this.verifier = verifier;
 	}
 
-	public WSReportsDTO validateDocument(RemoteDocument signedFile, List<RemoteDocument> originalFiles, RemoteDocument policy) {
+	/**
+	 * Validates the document
+	 *
+	 * @param dataToValidate {@link DataToValidateDTO} the request
+	 * @return {@link WSReportsDTO} response
+	 */
+	public WSReportsDTO validateDocument(DataToValidateDTO dataToValidate) {
 		LOG.info("ValidateDocument in process...");
-		SignedDocumentValidator validator = initValidator(signedFile, originalFiles);
+		SignedDocumentValidator validator = initValidator(dataToValidate);
 
 		Reports reports = null;
+		RemoteDocument policy = dataToValidate.getPolicy();
 		if (policy == null) {
 			reports = validator.validateDocument();
 		} else {
@@ -66,18 +82,17 @@ public class RemoteDocumentValidationService {
 		return reportsDTO;
 	}
 
-	private ValidationPolicy getValidationPolicy(RemoteDocument policy) {
-		try (ByteArrayInputStream bais = new ByteArrayInputStream(policy.getBytes())) {
-			return ValidationPolicyFacade.newFacade().getValidationPolicy(bais);
-		} catch (Exception e) {
-			throw new DSSException("Unable to load the validation policy", e);
-		}
-	}
-
-	public List<RemoteDocument> getOriginalDocuments(RemoteDocument signedFile, List<RemoteDocument> originalFiles, String signatureId) {
+	/**
+	 * Gets the original documents
+	 *
+	 * @param dataToValidate {@link DataToValidateDTO} request
+	 * @return a list of {@link RemoteDocument}s
+	 */
+	public List<RemoteDocument> getOriginalDocuments(DataToValidateDTO dataToValidate) {
 		LOG.info("GetOriginalDocuments in process...");
-		SignedDocumentValidator validator = initValidator(signedFile, originalFiles);
+		SignedDocumentValidator validator = initValidator(dataToValidate);
 
+		String signatureId = dataToValidate.getSignatureId();
 		if (signatureId == null) {
 			List<AdvancedSignature> signatures = validator.getSignatures();
 			if (signatures.size() > 0) {
@@ -92,12 +107,24 @@ public class RemoteDocumentValidationService {
 		return remoteDocuments;
 	}
 
-	private SignedDocumentValidator initValidator(RemoteDocument signedFile, List<RemoteDocument> originalFiles) {
-		DSSDocument signedDocument = RemoteDocumentConverter.toDSSDocument(signedFile);
+	private ValidationPolicy getValidationPolicy(RemoteDocument policy) {
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(policy.getBytes())) {
+			return ValidationPolicyFacade.newFacade().getValidationPolicy(bais);
+		} catch (Exception e) {
+			throw new DSSException("Unable to load the validation policy", e);
+		}
+	}
+
+	private SignedDocumentValidator initValidator(DataToValidateDTO dataToValidate) {
+		DSSDocument signedDocument = RemoteDocumentConverter.toDSSDocument(dataToValidate.getSignedDocument());
 		SignedDocumentValidator signedDocValidator = SignedDocumentValidator.fromDocument(signedDocument);
+		if (Utils.isCollectionNotEmpty(dataToValidate.getOriginalDocuments())) {
+			signedDocValidator.setDetachedContents(RemoteDocumentConverter.toDSSDocuments(dataToValidate.getOriginalDocuments()));
+		}
 		signedDocValidator.setCertificateVerifier(verifier);
-		if (Utils.isCollectionNotEmpty(originalFiles)) {
-			signedDocValidator.setDetachedContents(RemoteDocumentConverter.toDSSDocuments(originalFiles));
+		// If null, uses default (NONE)
+		if (dataToValidate.getTokenExtractionStrategy() != null) {
+			signedDocValidator.setTokenExtractionStrategy(dataToValidate.getTokenExtractionStrategy());
 		}
 		return signedDocValidator;
 	}

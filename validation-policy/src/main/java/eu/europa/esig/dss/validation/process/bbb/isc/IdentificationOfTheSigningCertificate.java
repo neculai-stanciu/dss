@@ -20,11 +20,10 @@
  */
 package eu.europa.esig.dss.validation.process.bbb.isc;
 
-import java.util.List;
-
 import eu.europa.esig.dss.detailedreport.jaxb.XmlCertificateChain;
 import eu.europa.esig.dss.detailedreport.jaxb.XmlChainItem;
 import eu.europa.esig.dss.detailedreport.jaxb.XmlISC;
+import eu.europa.esig.dss.diagnostic.CertificateRefWrapper;
 import eu.europa.esig.dss.diagnostic.CertificateWrapper;
 import eu.europa.esig.dss.diagnostic.SignatureWrapper;
 import eu.europa.esig.dss.diagnostic.TokenProxy;
@@ -37,11 +36,15 @@ import eu.europa.esig.dss.policy.ValidationPolicy;
 import eu.europa.esig.dss.policy.jaxb.LevelConstraint;
 import eu.europa.esig.dss.validation.process.Chain;
 import eu.europa.esig.dss.validation.process.ChainItem;
+import eu.europa.esig.dss.validation.process.bbb.isc.checks.AllDigestValuesMatchCheck;
 import eu.europa.esig.dss.validation.process.bbb.isc.checks.DigestValueMatchCheck;
 import eu.europa.esig.dss.validation.process.bbb.isc.checks.DigestValuePresentCheck;
 import eu.europa.esig.dss.validation.process.bbb.isc.checks.IssuerSerialMatchCheck;
 import eu.europa.esig.dss.validation.process.bbb.isc.checks.SigningCertificateAttributePresentCheck;
 import eu.europa.esig.dss.validation.process.bbb.isc.checks.SigningCertificateRecognitionCheck;
+import eu.europa.esig.dss.validation.process.bbb.isc.checks.UnicitySigningCertificateAttributeCheck;
+
+import java.util.List;
 
 /**
  * 5.2.3 Identification of the signing certificate
@@ -50,12 +53,25 @@ import eu.europa.esig.dss.validation.process.bbb.isc.checks.SigningCertificateRe
  */
 public class IdentificationOfTheSigningCertificate extends Chain<XmlISC> {
 
+	/** The token to verify */
 	private final TokenProxy token;
 
-	private final Context context;
+	/** The validation policy */
 	private final ValidationPolicy validationPolicy;
 
-	public IdentificationOfTheSigningCertificate(I18nProvider i18nProvider, TokenProxy token, Context context, ValidationPolicy validationPolicy) {
+	/** The validation context */
+	private final Context context;
+
+	/**
+	 * Default constructor
+	 *
+	 * @param i18nProvider {@link I18nProvider}
+	 * @param token {@link TokenProxy}
+	 * @param context {@link Context}
+	 * @param validationPolicy {@link ValidationPolicy}
+	 */
+	public IdentificationOfTheSigningCertificate(I18nProvider i18nProvider, TokenProxy token, Context context,
+												 ValidationPolicy validationPolicy) {
 		super(i18nProvider, new XmlISC());
 		this.token = token;
 		this.context = context;
@@ -79,7 +95,10 @@ public class IdentificationOfTheSigningCertificate extends Chain<XmlISC> {
 		 */
 		ChainItem<XmlISC> item = firstItem = signingCertificateRecognition();
 
-		if (Context.SIGNATURE.equals(context) || Context.COUNTER_SIGNATURE.equals(context)) {
+		boolean isSignature = Context.SIGNATURE.equals(context) || Context.COUNTER_SIGNATURE.equals(context);
+		boolean isTimestamp = Context.TIMESTAMP.equals(context);
+
+		if (isSignature || isTimestamp) {
 			/*
 			 * 1) If the signature format used contains a way to directly identify the reference to the signers'
 			 * certificate in the attribute, the building block shall check that the digest of the certificate
@@ -89,13 +108,18 @@ public class IdentificationOfTheSigningCertificate extends Chain<XmlISC> {
 			 */
 
 			// PKCS7 signatures have not these information
-			SignatureWrapper signature = (SignatureWrapper) token;
-			if (signature.getSignatureFormat() != null && SignatureForm.PKCS7.equals(signature.getSignatureFormat().getSignatureForm())) {
-				return;
+			if (isSignature) {
+				SignatureWrapper signature = (SignatureWrapper) token;
+				if (signature.getSignatureFormat() != null && SignatureForm.PKCS7.equals(signature.getSignatureFormat().getSignatureForm())) {
+					return;
+				}
 			}
 
 			item = item.setNextItem(signingCertificateAttributePresent());
 
+			// not revelant for timestamps RFC 5816
+			item = item.setNextItem(unicitySigningCertificateAttribute());
+			
 			/*
 			 * 2) The building block shall take the first reference and shall check that the digest of the certificate
 			 * referenced matches the result of digesting the signing certificate with the algorithm indicated. If they
@@ -106,14 +130,21 @@ public class IdentificationOfTheSigningCertificate extends Chain<XmlISC> {
 			 * the sub-indication NO_SIGNING_CERTIFICATE_FOUND.
 			 */
 			item = item.setNextItem(digestValuePresent());
+
 			item = item.setNextItem(digestValueMatch());
+
+			// timestamp : sig cert v1 and v2 might be present and must match the value
+			item = item.setNextItem(allDigestValuesMatch());
 
 			/*
 			 * 3) If the issuer and the serial number are additionally present in that reference, the details of the
 			 * issuer's name and the serial number of the IssuerSerial element may be compared with those indicated in
 			 * the signing certificate: if they do not match, an additional warning shall be returned with the output.
 			 */
-			item = item.setNextItem(issuerSerialMatch());
+			CertificateRefWrapper signingCertificateRef = token.getSigningCertificateReference();
+			if (signingCertificateRef != null && signingCertificateRef.isIssuerSerialPresent()) {
+				item = item.setNextItem(issuerSerialMatch());
+			}
 		}
 	}
 
@@ -150,6 +181,11 @@ public class IdentificationOfTheSigningCertificate extends Chain<XmlISC> {
 		return new SigningCertificateAttributePresentCheck(i18nProvider, result, token, constraint);
 	}
 
+	private ChainItem<XmlISC> unicitySigningCertificateAttribute() {
+		LevelConstraint constraint = validationPolicy.getUnicitySigningCertificateAttributeConstraint(context);
+		return new UnicitySigningCertificateAttributeCheck(i18nProvider, result, token, constraint);
+	}
+
 	private ChainItem<XmlISC> digestValuePresent() {
 		LevelConstraint constraint = validationPolicy.getSigningCertificateDigestValuePresentConstraint(context);
 		return new DigestValuePresentCheck(i18nProvider, result, token, constraint);
@@ -158,6 +194,11 @@ public class IdentificationOfTheSigningCertificate extends Chain<XmlISC> {
 	private ChainItem<XmlISC> digestValueMatch() {
 		LevelConstraint constraint = validationPolicy.getSigningCertificateDigestValueMatchConstraint(context);
 		return new DigestValueMatchCheck(i18nProvider, result, token, constraint);
+	}
+
+	private ChainItem<XmlISC> allDigestValuesMatch() {
+		LevelConstraint constraint = validationPolicy.getAllSigningCertificateDigestValuesMatchConstraint(context);
+		return new AllDigestValuesMatchCheck(i18nProvider, result, token, constraint);
 	}
 
 	private ChainItem<XmlISC> issuerSerialMatch() {

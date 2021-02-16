@@ -20,9 +20,7 @@
  */
 package eu.europa.esig.dss.validation.process.bbb.xcv.sub.checks;
 
-import java.util.Date;
-
-import eu.europa.esig.dss.detailedreport.jaxb.XmlSubXCV;
+import eu.europa.esig.dss.detailedreport.jaxb.XmlConstraintsConclusion;
 import eu.europa.esig.dss.diagnostic.CertificateRevocationWrapper;
 import eu.europa.esig.dss.diagnostic.CertificateWrapper;
 import eu.europa.esig.dss.enumerations.Indication;
@@ -33,15 +31,36 @@ import eu.europa.esig.dss.policy.jaxb.LevelConstraint;
 import eu.europa.esig.dss.validation.process.ChainItem;
 import eu.europa.esig.dss.validation.process.ValidationProcessUtils;
 
-public class CertificateExpirationCheck extends ChainItem<XmlSubXCV> {
+import java.util.Date;
 
+/**
+ * Checks if the certificate is not expired
+ */
+public class CertificateExpirationCheck<T extends XmlConstraintsConclusion> extends ChainItem<T> {
+
+	/** Validation date */
 	private final Date currentTime;
+
+	/** Certificate to check */
 	private final CertificateWrapper certificate;
+
+	/** The certificate's revocation */
 	private final CertificateRevocationWrapper usedCertificateRevocation;
 
+	/** The SubIndication if validation fails */
 	private SubIndication subIndication;
 
-	public CertificateExpirationCheck(I18nProvider i18nProvider, XmlSubXCV result, CertificateWrapper certificate,
+	/**
+	 * Default constructor
+	 *
+	 * @param i18nProvider {@link I18nProvider}
+	 * @param result the result
+	 * @param certificate {@link CertificateWrapper}
+	 * @param usedCertificateRevocation {@link CertificateRevocationWrapper}
+	 * @param currentTime {@link Date} validation time
+	 * @param constraint {@link LevelConstraint}
+	 */
+	public CertificateExpirationCheck(I18nProvider i18nProvider, T result, CertificateWrapper certificate,
 			CertificateRevocationWrapper usedCertificateRevocation, Date currentTime, LevelConstraint constraint) {
 		super(i18nProvider, result, constraint);
 		this.currentTime = currentTime;
@@ -54,7 +73,7 @@ public class CertificateExpirationCheck extends ChainItem<XmlSubXCV> {
 		boolean inValidityRange = isInValidityRange();
 		if (!inValidityRange) {
 			subIndication = SubIndication.OUT_OF_BOUNDS_NO_POE;
-			if (!ValidationProcessUtils.isRevocationNoNeedCheck(certificate, currentTime)) {
+			if (ValidationProcessUtils.isRevocationCheckRequired(certificate, currentTime)) {
 				if (usedCertificateRevocation != null && !usedCertificateRevocation.isRevoked()) {
 					subIndication = SubIndication.OUT_OF_BOUNDS_NOT_REVOKED;
 				}
@@ -70,11 +89,10 @@ public class CertificateExpirationCheck extends ChainItem<XmlSubXCV> {
 	}
 
 	@Override
-	protected MessageTag getAdditionalInfo() {
+	protected String buildAdditionalInfo() {
 		String notBeforeStr = certificate.getNotBefore() == null ? " ? " : ValidationProcessUtils.getFormattedDate(certificate.getNotBefore());
 		String notAfterStr = certificate.getNotAfter() == null ? " ? " : ValidationProcessUtils.getFormattedDate(certificate.getNotAfter());
-		Object[] params = new Object[] { notBeforeStr, notAfterStr };
-		return MessageTag.CERTIFICATE_VALIDITY.setArgs(params);
+		return i18nProvider.getMessage(MessageTag.CERTIFICATE_VALIDITY, notBeforeStr, notAfterStr);
 	}
 
 	@Override

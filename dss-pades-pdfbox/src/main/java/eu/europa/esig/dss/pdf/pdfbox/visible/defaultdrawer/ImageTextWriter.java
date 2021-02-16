@@ -21,9 +21,9 @@
 package eu.europa.esig.dss.pdf.pdfbox.visible.defaultdrawer;
 
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
@@ -33,8 +33,8 @@ import org.slf4j.LoggerFactory;
 import eu.europa.esig.dss.pades.DSSFont;
 import eu.europa.esig.dss.pades.SignatureImageParameters;
 import eu.europa.esig.dss.pades.SignatureImageTextParameters;
+import eu.europa.esig.dss.pdf.AnnotationBox;
 import eu.europa.esig.dss.pdf.visible.CommonDrawerUtils;
-import eu.europa.esig.dss.pdf.visible.FontUtils;
 
 /**
  * This class allows to generate image with text
@@ -49,30 +49,39 @@ public final class ImageTextWriter {
 
 	/**
 	 * Creates an image representing the specified text
+	 * 
 	 * @param imageParameters {@link SignatureImageParameters} to use
 	 * @return {@link BufferedImage} of the text picture
 	 */
 	public static BufferedImage createTextImage(final SignatureImageParameters imageParameters) {
 		// Computing image size depending on the font
 		SignatureImageTextParameters textParameters = imageParameters.getTextParameters();
+
 		DSSFont dssFont = textParameters.getFont();
-		Font properFont = FontUtils.computeProperFont(dssFont.getJavaFont(), dssFont.getSize(), imageParameters.getDpi());
-		Dimension dimension = FontUtils.computeSize(properFont, textParameters.getText(), textParameters.getPadding());
-		return createTextImage(textParameters, properFont, dimension);
-	}
-	
-	/**
-	 * Computes the original text dimension with no respect to DPI
-	 * @param textParameters {@link SignatureImageTextParameters}
-	 * @return {@link Dimension}
-	 */
-	public static Dimension getOriginalTextDimension(final SignatureImageTextParameters textParameters) {
-		DSSFont dssFont = textParameters.getFont();
-		Font properFont = FontUtils.computeProperFont(dssFont.getJavaFont(), dssFont.getSize(), CommonDrawerUtils.getDpi(null));
-		return FontUtils.computeSize(properFont, textParameters.getText(), textParameters.getPadding());
+		float fontSize = CommonDrawerUtils.computeProperSize(dssFont.getSize(), imageParameters.getDpi());
+
+		Font javaFont = dssFont.getJavaFont();
+		Font properFont = javaFont.deriveFont(fontSize);
+
+		FontMetrics fontMetrics = getFontMetrics(properFont);
+		JavaFontMetrics javaFontMetrics = new JavaFontMetrics(fontMetrics);
+
+		AnnotationBox textBox = javaFontMetrics.computeTextBoundaryBox(textParameters.getText(), fontSize,
+				textParameters.getPadding());
+		return createTextImage(textParameters, properFont, textBox);
 	}
 
-	private static BufferedImage createTextImage(final SignatureImageTextParameters textParameters, final Font font, final Dimension dimension) {
+	private static FontMetrics getFontMetrics(Font font) {
+		BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+		Graphics g = img.getGraphics();
+		g.setFont(font);
+		FontMetrics fontMetrics = g.getFontMetrics(font);
+		g.dispose();
+		return fontMetrics;
+	}
+
+	private static BufferedImage createTextImage(final SignatureImageTextParameters textParameters, final Font font,
+			final AnnotationBox textBox) {
 		String[] lines = textParameters.getText().split("\n");
 
 		int imageType;
@@ -83,7 +92,7 @@ public final class ImageTextWriter {
 			imageType = BufferedImage.TYPE_INT_RGB;
 		}
 
-		BufferedImage img = new BufferedImage(dimension.width, dimension.height, imageType);
+		BufferedImage img = new BufferedImage((int) textBox.getWidth(), (int) textBox.getHeight(), imageType);
 		Graphics2D g = img.createGraphics();
 		g.setFont(font);
 		FontMetrics fm = g.getFontMetrics(font);
@@ -96,7 +105,7 @@ public final class ImageTextWriter {
 		} else {
 			g.setColor(textParameters.getBackgroundColor());
 		}
-		g.fillRect(0, 0, dimension.width, dimension.height);
+		g.fillRect(0, 0, (int) textBox.getWidth(), (int) textBox.getHeight());
 
 		if (textParameters.getTextColor() == null) {
 			g.setPaint(Color.BLACK);
@@ -111,16 +120,16 @@ public final class ImageTextWriter {
 			float x = textParameters.getPadding(); // left alignment
 			if (textParameters.getSignerTextHorizontalAlignment() != null) {
 				switch (textParameters.getSignerTextHorizontalAlignment()) {
-					case RIGHT:
-						x = img.getWidth() - fm.stringWidth(line) - x; // -x because of margin
-						break;
-					case CENTER:
-						x = (float)(img.getWidth() - fm.stringWidth(line)) / 2;
-						break;
-					case LEFT:
-					default:
-						// nothing
-						break;
+				case RIGHT:
+					x = img.getWidth() - fm.stringWidth(line) - x; // -x because of margin
+					break;
+				case CENTER:
+					x = (float) (img.getWidth() - fm.stringWidth(line)) / 2;
+					break;
+				case LEFT:
+				default:
+					// nothing
+					break;
 				}
 			}
 			g.drawString(line, x, y);

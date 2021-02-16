@@ -20,29 +20,28 @@
  */
 package eu.europa.esig.dss.xades.signature;
 
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
-
-import javax.xml.datatype.XMLGregorianCalendar;
-
-import org.bouncycastle.cert.ocsp.BasicOCSPResp;
-import org.bouncycastle.cert.ocsp.RespID;
-import org.w3c.dom.Element;
-
 import eu.europa.esig.dss.DomUtils;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.SignatureLevel;
 import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.model.x509.revocation.Revocation;
 import eu.europa.esig.dss.spi.DSSRevocationUtils;
+import eu.europa.esig.dss.spi.x509.ResponderId;
 import eu.europa.esig.dss.spi.x509.revocation.RevocationToken;
 import eu.europa.esig.dss.spi.x509.revocation.crl.CRLToken;
 import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPToken;
-import eu.europa.esig.dss.spi.x509.revocation.ocsp.ResponderId;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.validation.ValidationContext;
+import org.bouncycastle.cert.ocsp.BasicOCSPResp;
+import org.bouncycastle.cert.ocsp.RespID;
+import org.w3c.dom.Element;
+
+import javax.xml.datatype.XMLGregorianCalendar;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Contains XAdES-C profile aspects
@@ -52,6 +51,8 @@ public class XAdESLevelC extends XAdESLevelBaselineT {
 
 	/**
 	 * The default constructor for XAdESLevelC.
+	 *
+	 * @param certificateVerifier {@link CertificateVerifier}
 	 */
 	public XAdESLevelC(CertificateVerifier certificateVerifier) {
 		super(certificateVerifier);
@@ -79,7 +80,7 @@ public class XAdESLevelC extends XAdESLevelBaselineT {
 	 * @param processedRevocationTokens
 	 * @throws DSSException
 	 */
-	private void incorporateCRLRefs(Element completeRevocationRefsDom, final Set<RevocationToken> processedRevocationTokens) throws DSSException {
+	private void incorporateCRLRefs(Element completeRevocationRefsDom, final Set<RevocationToken<Revocation>> processedRevocationTokens) throws DSSException {
 
 		if (processedRevocationTokens.isEmpty()) {
 
@@ -155,7 +156,8 @@ public class XAdESLevelC extends XAdESLevelBaselineT {
 	 * @param processedRevocationTokens
 	 * @throws eu.europa.esig.dss.model.DSSException
 	 */
-	private void incorporateOCSPRefs(final Element completeRevocationRefsDom, final Set<RevocationToken> processedRevocationTokens) throws DSSException {
+	private void incorporateOCSPRefs(final Element completeRevocationRefsDom, final Set<RevocationToken<Revocation>> processedRevocationTokens)
+			throws DSSException {
 
 		if (processedRevocationTokens.isEmpty()) {
 
@@ -193,11 +195,11 @@ public class XAdESLevelC extends XAdESLevelBaselineT {
 					final RespID respID = basicOcspResp.getResponderId();
 					final ResponderId responderId = DSSRevocationUtils.getDSSResponderId(respID);
 					
-					if (Utils.isStringNotEmpty(responderId.getName())) {
+					if (responderId.getX500Principal() != null) {
 						DomUtils.addTextElement(documentDom, responderIDDom, getXadesNamespace(), 
-								getCurrentXAdESElements().getElementByName(), responderId.getName());
+								getCurrentXAdESElements().getElementByName(), responderId.getX500Principal().toString());
 					} else {
-						final String base64EncodedKeyHashOctetStringBytes = Utils.toBase64(responderId.getKey());
+						final String base64EncodedKeyHashOctetStringBytes = Utils.toBase64(responderId.getSki());
 						DomUtils.addTextElement(documentDom, responderIDDom, getXadesNamespace(), 
 								getCurrentXAdESElements().getElementByKey(), base64EncodedKeyHashOctetStringBytes);
 					}
@@ -283,4 +285,5 @@ public class XAdESLevelC extends XAdESLevelBaselineT {
 			unsignedSignaturePropertiesDom = indentIfPrettyPrint(unsignedSignaturePropertiesDom, levelTUnsignedProperties);
 		}
 	}
+
 }

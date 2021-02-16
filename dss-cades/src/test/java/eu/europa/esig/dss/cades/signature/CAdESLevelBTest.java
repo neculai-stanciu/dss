@@ -20,22 +20,28 @@
  */
 package eu.europa.esig.dss.cades.signature;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-
-import javax.crypto.Cipher;
-
+import eu.europa.esig.dss.cades.CAdESSignatureParameters;
+import eu.europa.esig.dss.cades.validation.CAdESSignature;
+import eu.europa.esig.dss.cades.validation.CMSDocumentValidator;
+import eu.europa.esig.dss.diagnostic.DiagnosticData;
+import eu.europa.esig.dss.diagnostic.SignatureWrapper;
+import eu.europa.esig.dss.diagnostic.jaxb.XmlDigestAlgoAndValue;
+import eu.europa.esig.dss.enumerations.CommitmentTypeEnum;
+import eu.europa.esig.dss.enumerations.DigestAlgorithm;
+import eu.europa.esig.dss.enumerations.SignatureLevel;
+import eu.europa.esig.dss.enumerations.SignaturePackaging;
+import eu.europa.esig.dss.model.DSSDocument;
+import eu.europa.esig.dss.model.InMemoryDocument;
+import eu.europa.esig.dss.model.MimeType;
+import eu.europa.esig.dss.model.SignerLocation;
+import eu.europa.esig.dss.model.ToBeSigned;
+import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.signature.DocumentSignatureService;
+import eu.europa.esig.dss.spi.DSSASN1Utils;
+import eu.europa.esig.dss.spi.DSSUtils;
+import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.validation.AdvancedSignature;
+import eu.europa.esig.dss.validation.SignedDocumentValidator;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -44,7 +50,6 @@ import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1TaggedObject;
-import org.bouncycastle.asn1.DERTaggedObject;
 import org.bouncycastle.asn1.cms.ContentInfo;
 import org.bouncycastle.asn1.cms.IssuerAndSerialNumber;
 import org.bouncycastle.asn1.cms.SignedData;
@@ -58,25 +63,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import eu.europa.esig.dss.cades.CAdESSignatureParameters;
-import eu.europa.esig.dss.cades.validation.CAdESSignature;
-import eu.europa.esig.dss.diagnostic.DiagnosticData;
-import eu.europa.esig.dss.diagnostic.SignatureWrapper;
-import eu.europa.esig.dss.enumerations.DigestAlgorithm;
-import eu.europa.esig.dss.enumerations.SignatureLevel;
-import eu.europa.esig.dss.enumerations.SignaturePackaging;
-import eu.europa.esig.dss.model.DSSDocument;
-import eu.europa.esig.dss.model.InMemoryDocument;
-import eu.europa.esig.dss.model.MimeType;
-import eu.europa.esig.dss.model.SignerLocation;
-import eu.europa.esig.dss.model.x509.CertificateToken;
-import eu.europa.esig.dss.signature.DocumentSignatureService;
-import eu.europa.esig.dss.spi.DSSASN1Utils;
-import eu.europa.esig.dss.spi.DSSUtils;
-import eu.europa.esig.dss.test.signature.AbstractPkiFactoryTestDocumentSignatureService;
-import eu.europa.esig.dss.utils.Utils;
+import javax.crypto.Cipher;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 
-public class CAdESLevelBTest extends AbstractPkiFactoryTestDocumentSignatureService<CAdESSignatureParameters, CAdESTimestampParameters> {
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
+public class CAdESLevelBTest extends AbstractCAdESTestSignature {
 
 	private static final String HELLO_WORLD = "Hello World";
 
@@ -100,7 +103,7 @@ public class CAdESLevelBTest extends AbstractPkiFactoryTestDocumentSignatureServ
 		signatureParameters.bLevel().setSignerLocation(signerLocation);
 
 		signatureParameters.bLevel().setClaimedSignerRoles(Arrays.asList("supplier"));
-		signatureParameters.bLevel().setCommitmentTypeIndications(Arrays.asList("1.2.3", "2.4.5.6"));
+		signatureParameters.bLevel().setCommitmentTypeIndications(Arrays.asList(CommitmentTypeEnum.ProofOfApproval, CommitmentTypeEnum.ProofOfCreation));
 
 		signatureParameters.setContentHintsType("1.2.840.113549.1.7.1");
 		signatureParameters.setContentHintsDescription("text/plain");
@@ -112,7 +115,7 @@ public class CAdESLevelBTest extends AbstractPkiFactoryTestDocumentSignatureServ
 		signatureParameters.setSignaturePackaging(SignaturePackaging.ENVELOPING);
 		signatureParameters.setSignatureLevel(SignatureLevel.CAdES_BASELINE_B);
 
-		service = new CAdESService(getCompleteCertificateVerifier());
+		service = new CAdESService(getOfflineCertificateVerifier());
 
 	}
 
@@ -127,9 +130,15 @@ public class CAdESLevelBTest extends AbstractPkiFactoryTestDocumentSignatureServ
 
 	@Override
 	protected void onDocumentSigned(byte[] byteArray) {
-		try {
+		super.onDocumentSigned(byteArray);
 
-			CAdESSignature signature = new CAdESSignature(byteArray);
+		try {
+			CMSDocumentValidator cmsDocumentValidator = new CMSDocumentValidator(new InMemoryDocument(byteArray));
+			List<AdvancedSignature> signatures = cmsDocumentValidator.getSignatures();
+			assertEquals(1, signatures.size());
+			assertTrue(signatures.get(0) instanceof CAdESSignature);
+			
+			CAdESSignature signature = (CAdESSignature) signatures.get(0);
 			assertNotNull(signature.getCmsSignedData());
 			assertTrue(Utils.isArrayNotEmpty(signature.getMessageDigestValue()));
 
@@ -297,6 +306,34 @@ public class CAdESLevelBTest extends AbstractPkiFactoryTestDocumentSignatureServ
 			logger.error(e.getMessage(), e);
 			fail(e.getMessage());
 		}
+	}
+	
+	@Override
+	protected void checkDTBSR(DiagnosticData diagnosticData) {
+		super.checkDTBSR(diagnosticData);
+		
+		SignatureWrapper signature = diagnosticData.getSignatureById(diagnosticData.getFirstSignatureId());
+		XmlDigestAlgoAndValue dtbsr = signature.getDataToBeSignedRepresentation();
+		
+		ToBeSigned dataToSign = service.getDataToSign(documentToSign, getSignatureParameters());
+		assertArrayEquals(DSSUtils.digest(dtbsr.getDigestMethod(), dataToSign.getBytes()), dtbsr.getDigestValue());
+	}
+	
+	@Override
+	protected void verifyOriginalDocuments(SignedDocumentValidator validator, DiagnosticData diagnosticData) {
+		super.verifyOriginalDocuments(validator, diagnosticData);
+		
+		List<DSSDocument> results = validator.getOriginalDocuments(diagnosticData.getFirstSignatureId());
+		assertEquals(1, results.size());
+
+		String firstDocument = new String(DSSUtils.toByteArray(documentToSign));
+		String secondDocument = new String(DSSUtils.toByteArray(results.get(0)));
+		assertEquals(firstDocument, secondDocument);
+
+		String digest = documentToSign.getDigest(DigestAlgorithm.SHA256);
+		String digest2 = results.get(0).getDigest(DigestAlgorithm.SHA256);
+
+		assertEquals(digest, digest2);
 	}
 
 	@Override

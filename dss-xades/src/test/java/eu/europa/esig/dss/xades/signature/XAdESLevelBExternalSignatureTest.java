@@ -20,6 +20,8 @@
  */
 package eu.europa.esig.dss.xades.signature;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.io.File;
 import java.util.Date;
 
@@ -63,7 +65,7 @@ public class XAdESLevelBExternalSignatureTest extends AbstractXAdESTestSignature
 		signatureParameters.setSignedInfoCanonicalizationMethod(CanonicalizationMethod.EXCLUSIVE);
 		signatureParameters.setGenerateTBSWithoutCertificate(true);
 
-		service = new XAdESService(getCompleteCertificateVerifier());
+		service = new XAdESService(getOfflineCertificateVerifier());
 	}
 
 	@Override
@@ -113,7 +115,7 @@ public class XAdESLevelBExternalSignatureTest extends AbstractXAdESTestSignature
 		try {
 			// Use Dummy XAdES builder to create XAdES object which include signing certificate, and update toBeSigned
 			DummyXAdESSignatureBuilder dummyXAdESSignatureBuilder = new DummyXAdESSignatureBuilder(getSignatureParameters(), getDocumentToSign(),
-					getCompleteCertificateVerifier());
+					getOfflineCertificateVerifier());
 			toBeSigned.setBytes(dummyXAdESSignatureBuilder.build(signingDate, getSigningCert()));
 			externalSignatureResult.setSignedData(toBeSigned.getBytes());
 
@@ -124,6 +126,7 @@ public class XAdESLevelBExternalSignatureTest extends AbstractXAdESTestSignature
 			// Calculate signature
 			SignatureValue signatureValue = getToken().sign(toBeSigned, getSignatureParameters().getDigestAlgorithm(),
 					getSignatureParameters().getMaskGenerationFunction(), getPrivateKeyEntry());
+			assertTrue(service.isValidSignatureValue(toBeSigned, signatureValue, getSigningCert()));
 			externalSignatureResult.setSignatureValue(signatureValue);
 		} catch (Exception e) {
 			LOG.error("Error while simulating external XAdES signature", e);

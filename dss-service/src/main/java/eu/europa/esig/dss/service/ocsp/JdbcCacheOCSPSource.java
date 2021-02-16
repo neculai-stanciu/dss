@@ -20,39 +20,35 @@
  */
 package eu.europa.esig.dss.service.ocsp;
 
+import eu.europa.esig.dss.enumerations.RevocationOrigin;
+import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.model.x509.revocation.ocsp.OCSP;
+import eu.europa.esig.dss.spi.DSSRevocationUtils;
+import eu.europa.esig.dss.spi.x509.revocation.JdbcRevocationSource;
+import eu.europa.esig.dss.spi.x509.revocation.RevocationException;
+import eu.europa.esig.dss.spi.x509.revocation.RevocationToken;
+import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPSource;
+import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPToken;
+import org.bouncycastle.cert.ocsp.BasicOCSPResp;
+import org.bouncycastle.cert.ocsp.OCSPException;
+import org.bouncycastle.cert.ocsp.OCSPResp;
+import org.bouncycastle.cert.ocsp.SingleResp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.Collections;
 import java.util.List;
-
-import org.bouncycastle.cert.ocsp.OCSPException;
-import org.bouncycastle.cert.ocsp.OCSPResp;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import eu.europa.esig.dss.enumerations.RevocationOrigin;
-import eu.europa.esig.dss.model.x509.CertificateToken;
-import eu.europa.esig.dss.spi.DSSRevocationUtils;
-import eu.europa.esig.dss.spi.x509.revocation.JdbcRevocationSource;
-import eu.europa.esig.dss.spi.x509.revocation.RevocationException;
-import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPSource;
-import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPToken;
-import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPTokenBuilder;
-import eu.europa.esig.dss.spi.x509.revocation.ocsp.OCSPTokenUtils;
 
 /**
  * OCSPSource that retrieve information from a JDBC data-source.
  *
- * @version 1.0
- * @author akoepe
- * @author aleksandr.beliakov
- * @author pierrick.vanderbroucke
  */
-public class JdbcCacheOCSPSource extends JdbcRevocationSource<OCSPToken> implements OCSPSource {
+public class JdbcCacheOCSPSource extends JdbcRevocationSource<OCSP> implements OCSPSource {
 	
 	private static final long serialVersionUID = 10480458323923489L;
 
@@ -80,6 +76,9 @@ public class JdbcCacheOCSPSource extends JdbcRevocationSource<OCSPToken> impleme
 	 */
 	private static final String SQL_FIND_QUERY_DATA = "DATA";
 
+	/**
+	 * Used to store a URL
+	 */
 	private static final String SQL_FIND_QUERY_LOC = "LOC";
 
 	/**
@@ -141,11 +140,11 @@ public class JdbcCacheOCSPSource extends JdbcRevocationSource<OCSPToken> impleme
 			final String url = rs.getString(SQL_FIND_QUERY_LOC);
 			
 			final OCSPResp ocspResp = new OCSPResp(data);
-			OCSPTokenBuilder ocspTokenBuilder = new OCSPTokenBuilder(ocspResp, certificateToken, issuerCert);
-			ocspTokenBuilder.setSourceURL(url);
-			OCSPToken ocspToken = ocspTokenBuilder.build();
-			ocspToken.setOrigins(Collections.singleton(RevocationOrigin.CACHED));
-			OCSPTokenUtils.checkTokenValidity(ocspToken, certificateToken, issuerCert);
+			BasicOCSPResp basicResponse = (BasicOCSPResp) ocspResp.getResponseObject();
+			SingleResp latestSingleResponse = DSSRevocationUtils.getLatestSingleResponse(basicResponse, certificateToken, issuerCert);
+			OCSPToken ocspToken = new OCSPToken(basicResponse, latestSingleResponse, certificateToken, issuerCert);
+			ocspToken.setSourceURL(url);
+			ocspToken.setExternalOrigin(RevocationOrigin.CACHED);
 			return ocspToken;
 		} catch (SQLException | IOException | OCSPException e) {
 			throw new RevocationException("An error occurred during an attempt to obtain a revocation token");
@@ -160,7 +159,7 @@ public class JdbcCacheOCSPSource extends JdbcRevocationSource<OCSPToken> impleme
 	 *            OCSP token
 	 */
 	@Override
-	protected void insertRevocation(final OCSPToken token) {
+	protected void insertRevocation(RevocationToken<OCSP> token) {
 		Connection c = null;
 		PreparedStatement s = null;
 		try {
@@ -194,7 +193,7 @@ public class JdbcCacheOCSPSource extends JdbcRevocationSource<OCSPToken> impleme
 	 *            new OCSP token
 	 */
 	@Override
-	protected void updateRevocation(final OCSPToken token) {
+	protected void updateRevocation(final RevocationToken<OCSP> token) {
 		Connection c = null;
 		PreparedStatement s = null;
 		try {
@@ -218,6 +217,16 @@ public class JdbcCacheOCSPSource extends JdbcRevocationSource<OCSPToken> impleme
 		} finally {
 			closeQuietly(c, s, null);
 		}
+	}
+
+	@Override
+	public OCSPToken getRevocationToken(CertificateToken certificateToken, CertificateToken issuerCertificateToken) {
+		return (OCSPToken) super.getRevocationToken(certificateToken, issuerCertificateToken);
+	}
+
+	@Override
+	public OCSPToken getRevocationToken(CertificateToken certificateToken, CertificateToken issuerCertificateToken, boolean forceRefresh) {
+		return (OCSPToken) super.getRevocationToken(certificateToken, issuerCertificateToken, forceRefresh);
 	}
 	
 }

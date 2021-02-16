@@ -20,22 +20,11 @@
  */
 package eu.europa.esig.dss.pades.extension.suite;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.List;
-
-import org.junit.jupiter.api.Test;
-
 import eu.europa.esig.dss.detailedreport.DetailedReport;
 import eu.europa.esig.dss.diagnostic.CertificateWrapper;
 import eu.europa.esig.dss.diagnostic.DiagnosticData;
+import eu.europa.esig.dss.diagnostic.SignerDataWrapper;
 import eu.europa.esig.dss.diagnostic.TimestampWrapper;
-import eu.europa.esig.dss.diagnostic.jaxb.XmlSignerData;
 import eu.europa.esig.dss.enumerations.CertificateSourceType;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.Indication;
@@ -49,7 +38,7 @@ import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.pades.validation.PDFDocumentValidator;
 import eu.europa.esig.dss.simplereport.SimpleReport;
 import eu.europa.esig.dss.spi.DSSUtils;
-import eu.europa.esig.dss.test.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.test.PKIFactoryAccess;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.reports.Reports;
 import eu.europa.esig.validationreport.enums.ObjectType;
@@ -61,6 +50,19 @@ import eu.europa.esig.validationreport.jaxb.ValidationObjectListType;
 import eu.europa.esig.validationreport.jaxb.ValidationObjectType;
 import eu.europa.esig.validationreport.jaxb.ValidationReportType;
 import eu.europa.esig.validationreport.jaxb.ValidationStatusType;
+import org.junit.jupiter.api.Test;
+
+import java.util.Calendar;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PDFArchiveTimestampingTest extends PKIFactoryAccess {
 	
@@ -78,18 +80,20 @@ public class PDFArchiveTimestampingTest extends PKIFactoryAccess {
 		extendParams.setSigningCertificate(getSigningCert());
 		DSSDocument extendedDoc = service.extendDocument(doc, extendParams);
 		
-		Thread.sleep(1000);
+		Calendar nextSecond = Calendar.getInstance();
+		nextSecond.add(Calendar.SECOND, 1);
+		await().atMost(2, TimeUnit.SECONDS).until(() -> Calendar.getInstance().getTime().compareTo(nextSecond.getTime()) > 0);
 		
 		extendParams.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
 		extendParams.setSigningCertificate(getSigningCert());
 		DSSException exception = assertThrows(DSSException.class, () -> service.extendDocument(extendedDoc, extendParams));
-		assertEquals("No signature to be extended", exception.getMessage());
+		assertEquals("No signatures found to be extended!", exception.getMessage());
 		
 		PDFDocumentValidator validator = new PDFDocumentValidator(extendedDoc);
 		validator.setCertificateVerifier(getCompleteCertificateVerifier());
 		Reports reports = validator.validateDocument();
 		
-		reports.print();
+		// reports.print();
 
 		SimpleReport simpleReport = reports.getSimpleReport();
 		
@@ -113,7 +117,7 @@ public class PDFArchiveTimestampingTest extends PKIFactoryAccess {
 		assertEquals(1, diagnosticData.getTimestampIdList().size());
 		
 		for (TimestampWrapper timestampWrapper : timestampList) {
-			assertEquals(TimestampType.CONTENT_TIMESTAMP, timestampWrapper.getType());
+			assertEquals(TimestampType.DOCUMENT_TIMESTAMP, timestampWrapper.getType());
 
 			CertificateWrapper signingCertificate = timestampWrapper.getSigningCertificate();
 			assertNotNull(signingCertificate);
@@ -128,16 +132,17 @@ public class PDFArchiveTimestampingTest extends PKIFactoryAccess {
 			}
 			assertTrue(timestampSource);
 			
-			assertEquals(1, timestampWrapper.getTimestampedSignedDataIds().size());
+			assertEquals(1, timestampWrapper.getTimestampedSignedData().size());
 		}
 		
 		assertTrue(Utils.isCollectionEmpty(diagnosticData.getSignatures()));
 		
-		List<XmlSignerData> originalDocuments = diagnosticData.getOriginalSignerDocuments();
+		List<SignerDataWrapper> originalDocuments = diagnosticData.getOriginalSignerDocuments();
 		assertEquals(1, originalDocuments.size());
 		boolean fullDocFound = false;
-		for (XmlSignerData signerData : originalDocuments) {
+		for (SignerDataWrapper signerData : originalDocuments) {
 			if ("Full PDF".equals(signerData.getReferencedName())) {
+				assertEquals(originalDocDigestBase64, Utils.toBase64(signerData.getDigestAlgoAndValue().getDigestValue()));
 				fullDocFound = true;
 			}
 		}

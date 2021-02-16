@@ -20,147 +20,126 @@
  */
 package eu.europa.esig.dss.spi.x509.revocation.ocsp;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-
-import org.bouncycastle.asn1.esf.OcspResponsesID;
-import org.bouncycastle.asn1.esf.OtherHash;
-import org.bouncycastle.asn1.x500.X500Name;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import eu.europa.esig.dss.enumerations.DigestAlgorithm;
-import eu.europa.esig.dss.enumerations.RevocationRefOrigin;
-import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.model.Digest;
+import eu.europa.esig.dss.model.identifier.Identifier;
+import eu.europa.esig.dss.model.x509.revocation.ocsp.OCSP;
 import eu.europa.esig.dss.spi.DSSASN1Utils;
+import eu.europa.esig.dss.spi.DSSRevocationUtils;
 import eu.europa.esig.dss.spi.DSSUtils;
+import eu.europa.esig.dss.spi.x509.ResponderId;
 import eu.europa.esig.dss.spi.x509.revocation.RevocationRef;
 import eu.europa.esig.dss.utils.Utils;
+import org.bouncycastle.asn1.esf.OcspResponsesID;
+
+import java.util.Date;
 
 /**
  * Reference an OCSPResponse
  */
-public class OCSPRef extends RevocationRef {
-	
-	private static final long serialVersionUID = -4757221403735075782L;
+public class OCSPRef extends RevocationRef<OCSP> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(OCSPRef.class);
-	
-	private Date producedAt = null;
-	private ResponderId responderId = null;
+    private static final long serialVersionUID = -4757221403735075782L;
 
-	/**
-	 * The default constructor for OCSPRef.
-	 */
-	public OCSPRef(Digest digest, Date producedAt, ResponderId responderId, RevocationRefOrigin origin) {
-		this.digest = digest;
-		this.producedAt = producedAt;
-		this.responderId = responderId;
-		this.origins = new HashSet<>(Arrays.asList(origin));
-	}
+    /** OCSP's production time */
+    private Date producedAt = null;
 
-	/**
-	 * The default constructor for OCSPRef.
-	 */
-	public OCSPRef(final OcspResponsesID ocspResponsesID, RevocationRefOrigin origin) {
-		final OtherHash otherHash = ocspResponsesID.getOcspRepHash();
-		if (otherHash != null) {
-			DigestAlgorithm digestAlgorithm = DigestAlgorithm.forOID(otherHash.getHashAlgorithm().getAlgorithm().getId());
-			byte[] digestValue = otherHash.getHashValue();
-			this.digest = new Digest(digestAlgorithm, digestValue);
-		} else {
-			LOG.warn("Digest is not present for an OCSPRef with location [{}]!", origin.name());
-		}
-		
-		this.producedAt = DSSASN1Utils.getDate(ocspResponsesID.getOcspIdentifier().getProducedAt());
-		
-		this.responderId = new ResponderId();
-		X500Name name = ocspResponsesID.getOcspIdentifier().getOcspResponderID().getName();
-		if (name != null) {
-			this.responderId.setName(name.toString());
-		}
-		byte[] key = ocspResponsesID.getOcspIdentifier().getOcspResponderID().getKeyHash();
-		if (Utils.isArrayNotEmpty(key)) {
-			this.responderId.setKey(key);
-		}
-		this.origins = new HashSet<>(Arrays.asList(origin));
-	}
-	
-	public Date getProducedAt() {
-		return producedAt;
-	}
-	
-	public ResponderId getResponderId() {
-		return responderId;
-	}
-	
-	@Override
-	public String getDSSIdAsString() {
-		if (digest != null) {
-			return super.getDSSIdAsString();
-		}
-		byte[] bytes;
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); DataOutputStream dos = new DataOutputStream(baos)) {
-			if (producedAt != null) {
-				dos.writeLong(producedAt.getTime());
-			}
-			if (responderId.getKey() != null) {
-				dos.write(responderId.getKey());
-			}
-			if (responderId.getName() != null) {
-				dos.writeChars(responderId.getName());
-			}
-			dos.flush();
-			bytes = baos.toByteArray();
-		}  catch (IOException e) {
-			throw new DSSException("Cannot build DSS ID for the OCSP Ref.", e);
-		}
-		return "R-" + DSSUtils.toHex(DSSUtils.digest(DigestAlgorithm.SHA256, bytes)).toUpperCase();
-	}
-	
-	@Override
-	public String toString() {
-		if (responderId.getName() != null) {
-			return "OCSP Reference produced at [" + DSSUtils.formatInternal(producedAt) + "] "
-					+ "with Responder Name: [" + responderId.getName() + "]";
-		} else {
-			return "OCSP Reference produced at [" + DSSUtils.formatInternal(producedAt) + "] "
-					+ "with Responder key 64base: [" + Utils.toBase64(responderId.getKey()) + "]";
-		}
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj) {
-			return true;
-		}
-		if (!(obj instanceof OCSPRef)) {
-			return false;
-		}
-		OCSPRef o = (OCSPRef) obj;
-		if (!producedAt.equals(o.producedAt) ||
-				responderId.getName() != null && !responderId.getName().equals(o.getResponderId().getName()) ||
-				responderId.getKey() != null && !Arrays.equals(responderId.getKey(), o.getResponderId().getKey()) ||
-				digest != null && !digest.equals(o.getDigest())) {
-			return false;
-		}
-		return true;
-	}
+    /** The OCSP Responder Id */
+    private ResponderId responderId = null;
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = super.hashCode();
-		result = prime * result + ((digest == null) ? 0 : digest.hashCode());
-		result = prime * result + ((producedAt == null) ? 0 : producedAt.hashCode());
-		result = prime * result + ((responderId.getName() == null) ? 0 : responderId.getName().hashCode());
-		result = prime * result + ((responderId.getKey() == null) ? 0 : Arrays.hashCode(responderId.getKey()));
-		return result;
-	}
-	
+    /**
+     * The default constructor for OCSPRef.
+     *
+     * @param digest {@link Digest}
+     * @param producedAt {@link Date}
+     * @param responderId {@link ResponderId}
+     */
+    public OCSPRef(Digest digest, Date producedAt, ResponderId responderId) {
+        this.digest = digest;
+        this.producedAt = producedAt;
+        this.responderId = responderId;
+    }
+
+    /**
+     * The default constructor for OCSPRef.
+     *
+     * @param ocspResponsesID {@link OcspResponsesID}
+     */
+    public OCSPRef(final OcspResponsesID ocspResponsesID) {
+        this.digest = DSSRevocationUtils.getDigest(ocspResponsesID.getOcspRepHash());
+        this.producedAt = DSSASN1Utils.getDate(ocspResponsesID.getOcspIdentifier().getProducedAt());
+        this.responderId = DSSRevocationUtils.getDSSResponderId(ocspResponsesID.getOcspIdentifier().getOcspResponderID());
+    }
+
+    /**
+     * Gets the OCSP's production time
+     *
+     * @return {@link Date}
+     */
+    public Date getProducedAt() {
+        return producedAt;
+    }
+
+    /**
+     * Gets the Responder Id
+     *
+     * @return {@link ResponderId}
+     */
+    public ResponderId getResponderId() {
+        return responderId;
+    }
+
+    @Override
+    protected Identifier createIdentifier() {
+        return new OCSPRefIdentifier(this);
+    }
+
+    @Override
+    public String toString() {
+        if (responderId.getX500Principal() != null) {
+            return "OCSP Reference produced at [" + DSSUtils.formatInternal(producedAt) + "] "
+                    + "with Responder Name: [" + responderId.getX500Principal() + "]";
+        } else {
+            return "OCSP Reference produced at [" + DSSUtils.formatInternal(producedAt) + "] "
+                    + "with Responder key 64base: [" + Utils.toBase64(responderId.getSki()) + "]";
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + ((producedAt == null) ? 0 : producedAt.hashCode());
+        result = prime * result + ((responderId == null) ? 0 : responderId.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!super.equals(obj)) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        OCSPRef other = (OCSPRef) obj;
+        if (producedAt == null) {
+            if (other.producedAt != null) {
+                return false;
+            }
+        } else if (!producedAt.equals(other.producedAt)) {
+            return false;
+        }
+        if (responderId == null) {
+            if (other.responderId != null) {
+                return false;
+            }
+        } else if (!responderId.equals(other.responderId)) {
+            return false;
+        }
+        return true;
+    }
+
 }

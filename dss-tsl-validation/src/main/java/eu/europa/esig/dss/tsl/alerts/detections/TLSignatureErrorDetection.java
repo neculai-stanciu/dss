@@ -20,11 +20,15 @@
  */
 package eu.europa.esig.dss.tsl.alerts.detections;
 
+import eu.europa.esig.dss.alert.detector.AlertDetector;
 import eu.europa.esig.dss.spi.tsl.DownloadInfoRecord;
 import eu.europa.esig.dss.spi.tsl.TLInfo;
 import eu.europa.esig.dss.spi.tsl.ValidationInfoRecord;
 
-public class TLSignatureErrorDetection implements Detection<TLInfo> {
+/**
+ * Detects if an error in a TL validation occurred
+ */
+public class TLSignatureErrorDetection implements AlertDetector<TLInfo> {
 
 	@Override
 	public boolean detect(TLInfo info) {

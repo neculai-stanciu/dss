@@ -27,7 +27,7 @@ package eu.europa.esig.dss.service.http.commons;
  */
 public class OCSPDataLoader extends CommonsDataLoader {
 
-	public static final String OCSP_CONTENT_TYPE = "application/ocsp-request";
+	private static final String OCSP_CONTENT_TYPE = "application/ocsp-request";
 
 	/**
 	 * The default constructor for CommonsDataLoader.
@@ -39,7 +39,7 @@ public class OCSPDataLoader extends CommonsDataLoader {
 	/**
 	 * In case of OCSPDataLoader the contentType is fixed to: Content-Type "application/ocsp-request"
 	 *
-	 * @param contentType
+	 * @param contentType {@link String}
 	 */
 	@Override
 	public void setContentType(final String contentType) {

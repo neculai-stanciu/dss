@@ -20,14 +20,13 @@
  */
 package eu.europa.esig.dss.validation.process.qualification.certificate;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
 import eu.europa.esig.dss.detailedreport.jaxb.XmlValidationCertificateQualification;
 import eu.europa.esig.dss.diagnostic.CertificateWrapper;
 import eu.europa.esig.dss.diagnostic.TrustedServiceWrapper;
 import eu.europa.esig.dss.enumerations.CertificateQualification;
+import eu.europa.esig.dss.enumerations.CertificateQualifiedStatus;
+import eu.europa.esig.dss.enumerations.CertificateType;
+import eu.europa.esig.dss.enumerations.QSCDStatus;
 import eu.europa.esig.dss.enumerations.ValidationTime;
 import eu.europa.esig.dss.i18n.I18nProvider;
 import eu.europa.esig.dss.i18n.MessageTag;
@@ -37,9 +36,10 @@ import eu.europa.esig.dss.validation.process.ChainItem;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.CaQcCheck;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.CertificateIssuedByConsistentTrustServiceCheck;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.CertificateTypeCoverageCheck;
-import eu.europa.esig.dss.validation.process.qualification.certificate.checks.ForEsigCheck;
+import eu.europa.esig.dss.validation.process.qualification.certificate.checks.CertificateTypeCheck;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.GrantedStatusCheck;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.IsAbleToSelectOneTrustService;
+import eu.europa.esig.dss.validation.process.qualification.certificate.checks.IsQualificationConflictDetected;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.QSCDCheck;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.QualifiedCheck;
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.ServiceConsistencyCheck;
@@ -52,6 +52,12 @@ import eu.europa.esig.dss.validation.process.qualification.certificate.checks.ty
 import eu.europa.esig.dss.validation.process.qualification.certificate.checks.type.TypeStrategyFactory;
 import eu.europa.esig.dss.validation.process.qualification.trust.filter.TrustedServiceFilter;
 import eu.europa.esig.dss.validation.process.qualification.trust.filter.TrustedServicesFilterFactory;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class CertQualificationAtTimeBlock extends Chain<XmlValidationCertificateQualification> {
 
@@ -88,25 +94,25 @@ public class CertQualificationAtTimeBlock extends Chain<XmlValidationCertificate
 			throw new IllegalArgumentException("Unknown qualification time : " + validationTime);
 		}
 	}
-	
+
 	@Override
-	protected MessageTag getTitle() {
+	protected String buildChainTitle() {
 		MessageTag message = MessageTag.CERT_QUALIFICATION_AT_TIME;
 		MessageTag param;
 		switch (validationTime) {
-			case BEST_SIGNATURE_TIME:
-				param = MessageTag.VT_BEST_SIGNATURE_TIME;
-				break;
-			case CERTIFICATE_ISSUANCE_TIME:
-				param = MessageTag.VT_CERTIFICATE_ISSUANCE_TIME;
-				break;
-			case VALIDATION_TIME:
-				param = MessageTag.VT_VALIDATION_TIME;
-				break;
-			default:
-				throw new IllegalArgumentException(String.format("The validation time [%s] is not supported", validationTime));
+		case BEST_SIGNATURE_TIME:
+			param = MessageTag.VT_BEST_SIGNATURE_TIME;
+			break;
+		case CERTIFICATE_ISSUANCE_TIME:
+			param = MessageTag.VT_CERTIFICATE_ISSUANCE_TIME;
+			break;
+		case VALIDATION_TIME:
+			param = MessageTag.VT_VALIDATION_TIME;
+			break;
+		default:
+			throw new IllegalArgumentException(String.format("The validation time [%s] is not supported", validationTime));
 		}
-		return message.setArgs(param);
+		return i18nProvider.getMessage(message, param);
 	}
 
 	@Override
@@ -116,35 +122,50 @@ public class CertQualificationAtTimeBlock extends Chain<XmlValidationCertificate
 		TrustedServiceFilter filterByDate = TrustedServicesFilterFactory.createFilterByDate(date);
 		List<TrustedServiceWrapper> caqcServicesAtTime = filterByDate.filter(caqcServices);
 
+		// 2. Filter by cert type (current type or overruled)
+		TrustedServiceFilter filterByCertificateType = TrustedServicesFilterFactory.createFilterByCertificateType(signingCertificate);
+		caqcServicesAtTime = filterByCertificateType.filter(caqcServicesAtTime);
+
 		ChainItem<XmlValidationCertificateQualification> item = firstItem = item = hasCaQc(caqcServicesAtTime);
 
-		// 2. Filter by Granted
+		// 3. Run consistency checks to get warnings
+		for (TrustedServiceWrapper trustedService : caqcServicesAtTime) {
+			item = item.setNextItem(serviceConsistency(trustedService));
+		}
+
+		if (caqcServicesAtTime.size() > 1) {
+			// 4. Simulate with all CA/QC (granted + withdrawn) to detect conflict
+			Set<CertificateQualification> results = new HashSet<>();
+			for (TrustedServiceWrapper trustedService : caqcServicesAtTime) {
+				CertificateQualificationCalculation calculator = new CertificateQualificationCalculation(signingCertificate, trustedService);
+				results.add(calculator.getQualification());
+			}
+			item = item.setNextItem(isConflictDetected(results));
+
+			// interrupt in case of conflict
+			if (results.size() > 1) {
+				certificateQualification = CertificateQualification.NA;
+				return;
+			}
+		}
+
+		// 5. Filter by Granted
 		TrustedServiceFilter filterByGranted = TrustedServicesFilterFactory.createFilterByGranted();
 		caqcServicesAtTime = filterByGranted.filter(caqcServicesAtTime);
 
 		item = item.setNextItem(hasGrantedStatus(caqcServicesAtTime));
 
-		// 3.a Run consistency checks to get warnings
-		for (TrustedServiceWrapper trustedService : caqcServicesAtTime) {
-			item = item.setNextItem(serviceConsistency(trustedService));
-		}
-
-		// 3.b Filter inconsistent trust services
+		// 6. Filter inconsistent trust services
 		TrustedServiceFilter filterConsistent = TrustedServicesFilterFactory.createConsistentServiceFilter();
 		caqcServicesAtTime = filterConsistent.filter(caqcServicesAtTime);
 
 		item = item.setNextItem(hasConsistentTrustService(caqcServicesAtTime));
 
-		// 4. Filter by certificate type (ASi or overruled)
-		TrustedServiceFilter filterByCertificateType = TrustedServicesFilterFactory
-				.createFilterByCertificateType(signingCertificate);
-		caqcServicesAtTime = filterByCertificateType.filter(caqcServicesAtTime);
-
 		item = item.setNextItem(hasCertificateTypeCoverage(caqcServicesAtTime));
 
 		if (Utils.collectionSize(caqcServicesAtTime) > 1) {
 
-			// 5 Filter one trust service
+			// 7. Filter one trust service
 			TrustedServiceFilter filterUnique = TrustedServicesFilterFactory.createUniqueServiceFilter(signingCertificate);
 			caqcServicesAtTime = filterUnique.filter(caqcServicesAtTime);
 
@@ -153,20 +174,20 @@ public class CertQualificationAtTimeBlock extends Chain<XmlValidationCertificate
 
 		TrustedServiceWrapper selectedTrustService = !caqcServicesAtTime.isEmpty() ? caqcServicesAtTime.get(0) : null;
 
-		// 6. Trusted certificate matches the trust service properties ?
+		// 8. Trusted certificate matches the trust service properties ?
 		item = item.setNextItem(isTrustedCertificateMatchTrustService(selectedTrustService));
 
-		// 7. QC?
+		// 9. QC?
 		QualificationStrategy qcStrategy = QualificationStrategyFactory.createQualificationFromCertAndTL(signingCertificate, selectedTrustService);
-		QualifiedStatus qualifiedStatus = qcStrategy.getQualifiedStatus();
+		CertificateQualifiedStatus qualifiedStatus = qcStrategy.getQualifiedStatus();
 		item = item.setNextItem(isQualified(qualifiedStatus));
 
-		// 8. Type?
+		// 10. Type?
 		TypeStrategy typeStrategy = TypeStrategyFactory.createTypeFromCertAndTL(signingCertificate, selectedTrustService, qualifiedStatus);
-		Type type = typeStrategy.getType();
-		item = item.setNextItem(isForEsig(type));
+		CertificateType type = typeStrategy.getType();
+		item = item.setNextItem(certificateType(type));
 
-		// 9. QSCD ?
+		// 11. QSCD ?
 		QSCDStrategy qscdStrategy = QSCDStrategyFactory.createQSCDFromCertAndTL(signingCertificate, selectedTrustService, qualifiedStatus);
 		QSCDStatus qscdStatus = qscdStrategy.getQSCDStatus();
 		item = item.setNextItem(isQscd(qscdStatus));
@@ -184,6 +205,10 @@ public class CertQualificationAtTimeBlock extends Chain<XmlValidationCertificate
 
 	private ChainItem<XmlValidationCertificateQualification> hasCaQc(List<TrustedServiceWrapper> caqcServicesAtTime) {
 		return new CaQcCheck(i18nProvider, result, caqcServicesAtTime, getFailLevelConstraint());
+	}
+
+	private ChainItem<XmlValidationCertificateQualification> isConflictDetected(Set<CertificateQualification> certificateQualificationsAtTime) {
+		return new IsQualificationConflictDetected(i18nProvider, result, certificateQualificationsAtTime, getFailLevelConstraint());
 	}
 
 	private ChainItem<XmlValidationCertificateQualification> hasGrantedStatus(List<TrustedServiceWrapper> caqcServicesAtTime) {
@@ -212,12 +237,12 @@ public class CertQualificationAtTimeBlock extends Chain<XmlValidationCertificate
 		return new TrustedCertificateMatchTrustServiceCheck(i18nProvider, result, selectedTrustService, getWarnLevelConstraint());
 	}
 
-	private ChainItem<XmlValidationCertificateQualification> isQualified(QualifiedStatus qualifiedStatus) {
+	private ChainItem<XmlValidationCertificateQualification> isQualified(CertificateQualifiedStatus qualifiedStatus) {
 		return new QualifiedCheck(i18nProvider, result, qualifiedStatus, validationTime, getWarnLevelConstraint());
 	}
 
-	private ChainItem<XmlValidationCertificateQualification> isForEsig(Type type) {
-		return new ForEsigCheck(i18nProvider, result, type, validationTime, getWarnLevelConstraint());
+	private ChainItem<XmlValidationCertificateQualification> certificateType(CertificateType type) {
+		return new CertificateTypeCheck(i18nProvider, result, type, validationTime, getWarnLevelConstraint());
 	}
 
 	private ChainItem<XmlValidationCertificateQualification> isQscd(QSCDStatus qscdStatus) {
